@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Play, Pause, RotateCcw, SkipForward } from '@lucide/svelte';
+  import { Play, Pause, RotateCcw, SkipForward, Square } from '@lucide/svelte';
   import IconButton from '../common/IconButton.svelte';
   import { api } from '../../api/commands';
   import { app } from '../../state/app.svelte';
@@ -14,17 +14,21 @@
       : status === 'paused'
         ? 'Resume session'
         : status === 'completed'
-          ? 'Start next session'
+          ? 'Start new routine'
           : startLabel,
   );
 </script>
 
 <div class="timer-controls" class:compact-controls={compact}>
   {#if !compact}<IconButton
-      label="Reset session"
+      label={status === 'running' || status === 'paused'
+        ? 'Stop routine'
+        : 'Reset routine'}
       disabled={app.busy}
       onclick={() => app.run(() => api.timer('reset'))}
-      ><RotateCcw size={16} /></IconButton
+      >{#if status === 'running' || status === 'paused'}<Square
+          size={14}
+        />{:else}<RotateCcw size={16} />{/if}</IconButton
     >{/if}
   <button
     class="play-button"
@@ -44,7 +48,7 @@
           : status === 'paused'
             ? 'Resume'
             : status === 'completed'
-              ? 'Next session'
+              ? 'New routine'
               : startLabel}</span
       >{/if}
   </button>

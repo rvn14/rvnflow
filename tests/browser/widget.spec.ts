@@ -5,7 +5,7 @@ async function mockNative(page: Page, count: number) {
   await page.addInitScript(
     ({ settings, count }) => {
       const state = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         revision: 1,
         settings,
         timer: {
@@ -102,11 +102,27 @@ for (const count of [0, 1, 10, 50]) {
       await mockNative(page, count);
       await page.goto('/');
       await expect(page.getByRole('timer')).toHaveText('25:00');
+      expect(
+        await page
+          .locator('html')
+          .evaluate((el) => getComputedStyle(el).backgroundColor),
+      ).toBe('rgba(0, 0, 0, 0)');
+      expect(
+        await page
+          .locator('.widget-shell')
+          .evaluate((el) => getComputedStyle(el).boxShadow),
+      ).toBe('none');
+      await expect(
+        page.getByRole('group', { name: 'Session type' }),
+      ).toHaveCount(0);
       expect(await page.locator('.dot').count()).toBe(10);
       const compact = await page.locator('.timer-dots').boundingBox();
       expect(compact!.y + compact!.height).toBeLessThanOrEqual(105);
       if (count === 10 && scale === 2)
-        await page.screenshot({ path: 'docs/screenshots/compact.png' });
+        await page.screenshot({
+          path: 'docs/screenshots/compact.png',
+          omitBackground: true,
+        });
       await page.getByRole('button', { name: 'Expand widget' }).click();
       await page.setViewportSize({ width: 350, height: 560 });
       const composer = page.locator('.task-composer');
@@ -127,7 +143,10 @@ for (const count of [0, 1, 10, 50]) {
             .evaluate((el) => el.scrollHeight > el.clientHeight),
         ).toBe(true);
       if (count === 10 && scale === 2)
-        await page.screenshot({ path: 'docs/screenshots/expanded.png' });
+        await page.screenshot({
+          path: 'docs/screenshots/expanded.png',
+          omitBackground: true,
+        });
       await page
         .getByRole('textbox', { name: 'New task', exact: true })
         .fill('Another task');
@@ -137,6 +156,7 @@ for (const count of [0, 1, 10, 50]) {
       await expect(
         page.getByRole('textbox', { name: 'New task', exact: true }),
       ).toHaveValue('');
+      await page.getByRole('button', { name: 'Dismiss notification' }).click();
       await page
         .getByRole('button', { name: 'Open settings', exact: true })
         .click();
@@ -145,7 +165,10 @@ for (const count of [0, 1, 10, 50]) {
         .boundingBox();
       expect(save!.y + save!.height).toBeLessThan(560);
       if (count === 10 && scale === 2)
-        await page.screenshot({ path: 'docs/screenshots/settings.png' });
+        await page.screenshot({
+          path: 'docs/screenshots/settings.png',
+          omitBackground: true,
+        });
       await context.close();
     }
   });

@@ -6,6 +6,8 @@ export interface Timer {
   durationMs: number;
   remainingMs: number;
   completedFocus: number;
+  routineCompletedFocus?: number;
+  routineComplete?: boolean;
   taskId: string | null;
   wallDeadlineMs: number | null;
 }
@@ -28,8 +30,9 @@ export interface Settings {
   shortBreakMinutes: number;
   longBreakMinutes: number;
   sessionsPerCycle: number;
-  autoStartBreaks: boolean;
-  autoStartFocus: boolean;
+  longBreakEnabled: boolean;
+  longBreakInterval: number;
+  repeatRoutine: boolean;
   reducedMotion: boolean;
   alwaysOnTop: boolean;
   alarmEnabled: boolean;
@@ -73,8 +76,9 @@ export const defaultSettings: Settings = {
   shortBreakMinutes: 5,
   longBreakMinutes: 15,
   sessionsPerCycle: 4,
-  autoStartBreaks: false,
-  autoStartFocus: false,
+  longBreakEnabled: false,
+  longBreakInterval: 2,
+  repeatRoutine: true,
   reducedMotion: false,
   alwaysOnTop: true,
   alarmEnabled: true,

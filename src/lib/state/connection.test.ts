@@ -96,7 +96,7 @@ describe('native event lifecycle', () => {
     ];
     handlers.get('timer:completed')!({ payload: completed });
     expect(state.remaining).toBe(300000);
-    expect(toasts.current?.message).toContain('Short break ready');
+    expect(toasts.current?.message).toContain('Short break started');
     toasts.dismiss();
     handlers.get('timer:completed')!({ payload: completed });
     expect(toasts.current).toBeNull();

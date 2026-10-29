@@ -1,10 +1,13 @@
 # Data model and recovery
 
-Version 0.2 migrates schema 1 to schema 2, preserving an original `app-state.v1.json`
-before the first save. Tasks, paused/running timers and explicitly stored notification
-preferences survive migration. New auto-start options default off; notifications default
-on for new installations. Previously completed timers select the next session without
-counting the old completion again. Unsupported future schemas remain untouched.
+Version 0.2.1 migrates schema 1/2 to schema 3, preserving the original in
+`app-state.v1.json` or `app-state.v2.json`. Tasks, paused/running timers and explicitly
+stored notification preferences survive migration. Repeating rounds default on; the
+previous separate auto-start flags are replaced by automatic focus/rest transitions.
+Long breaks have their own enable flag and cadence. Per-round progress and the number
+of successful focus periods since the last long break are stored separately from lifetime
+focus credits. Previously completed sessions are never counted again. Unsupported future
+schemas remain untouched.
 `diagnostics.log` and `diagnostics.previous.log` contain bounded fixed-code diagnostics.
 
 Location: Tauri's Windows app data directory, normally `%APPDATA%\com.rvnflow.desktop`.
@@ -16,7 +19,7 @@ Location: Tauri's Windows app data directory, normally `%APPDATA%\com.rvnflow.de
 | `app-state.corrupt-<uuid>.json` | Preserved malformed primary after successful backup recovery           |
 | `custom-audio`                  | Validated local WAV/MP3 bytes, decoded from content                    |
 
-Schema version 2 stores UUID list/task IDs. Tasks have `id`, `listId`, `title`,
+Schema version 3 stores UUID list/task IDs. Tasks have `id`, `listId`, `title`,
 `completed`, `createdAt`, `updatedAt`, `completedAt`, and `order`. Timestamps are Unix
 milliseconds. Titles are trimmed and limited to 200 Unicode characters. The last list
 cannot be deleted. Reordering requires an exact permutation of the list's task IDs.

@@ -158,10 +158,11 @@ export class AppState {
     if (key === this.lastCompletion) return;
     this.lastCompletion = key;
     const minutes = Math.round(snapshot.timer.durationMs / 60000);
-    const message =
-      record.session === 'focus'
-        ? `Focus complete · ${snapshot.timer.session === 'longBreak' ? 'Long' : 'Short'} break ready — ${minutes} minutes.`
-        : 'Break finished · Your next focus session is ready.';
+    const message = snapshot.timer.routineComplete
+      ? `Routine complete · ${snapshot.settings.sessionsPerCycle} focus sessions finished.`
+      : record.session === 'focus'
+        ? `Focus complete · ${snapshot.timer.session === 'longBreak' ? 'Long' : 'Short'} break started — ${minutes} minutes.`
+        : 'Break finished · Your next focus session has started.';
     this.completionMessage = message;
     clearTimeout(this.completionTimer);
     this.completionTimer = setTimeout(

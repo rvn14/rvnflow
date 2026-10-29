@@ -42,14 +42,16 @@ while the process is absent are inherently ambiguous and documented as such.
 
 Completion is committed once before alarm/notification side effects. At most one missed
 session completes after sleep or restart; the correct next session is selected at full
-duration. It waits for Start unless the independent break/focus automation preference is
-enabled. Auto-start anchors to the current time, preventing catch-up chains. A skipped focus earns
+duration and starts automatically. Rounds repeat by default, until paused or stopped.
+Long-break cadence is independent of the round size. Auto-start anchors to the current
+time, preventing catch-up chains. A skipped focus earns
 no credit. The last 1,000 completion records are retained. An OS kill between durable
 completion and playback can lose the alarm, but cannot duplicate a focus credit.
 
 ## Windows and audio
 
-The single frameless opaque window resizes between logical dimensions. Native monitor
+The single frameless transparent window resizes between logical dimensions. CSS paints
+the rounded surface; native shadow and opaque window backgrounds are disabled. Native monitor
 work areas use physical coordinates to clamp saved positions. Tray actions and window
 close behavior are implemented in Rust. The single-instance plugin raises the existing
 window. Startup defaults off and is changed through the Rust plugin. OS calls use narrow

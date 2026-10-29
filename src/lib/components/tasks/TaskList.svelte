@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, ChevronDown, Pencil, Trash2, ListTodo } from '@lucide/svelte';
+  import { Plus, ChevronDown, Pencil, Trash2 } from '@lucide/svelte';
   import IconButton from '../common/IconButton.svelte';
   import TaskItem from './TaskItem.svelte';
   import { api } from '../../api/commands';
@@ -56,7 +56,7 @@
       class="task-section-toggle"
       aria-expanded={open}
       onclick={() => (open = !open)}
-      ><ListTodo size={15} /><span>YOUR TASKS</span><ChevronDown
+      ><span>Tasks</span><ChevronDown
         size={12}
         class={open ? '' : 'rotated'}
       /></button
@@ -186,7 +186,7 @@
       <Plus size={15} /><input
         aria-label="New task"
         bind:value={title}
-        placeholder="What are you working on?"
+        placeholder="Add a task…"
         disabled={app.busy}
         maxlength="200"
         required

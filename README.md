@@ -2,9 +2,10 @@
 
 **A little space to focus.** A small, offline Pomodoro widget for Windows 10/11.
 Built with Rust, Tauri 2, and Svelte 5. No account, cloud service, or telemetry.
-Version 0.2 repairs native freezes, automatically prepares the next session, and adds
-independent auto-start preferences, taskbar minimization and a clearer task workspace.
-See [repair findings and verification](docs/V0.2_BUGS.md).
+Version 0.2.1 runs focus and breaks automatically, repeats rounds until paused or stopped,
+and supports optional long breaks at their own interval. The window has one clean rounded
+surface, with no native shadow or opaque background behind it.
+See [automatic routines](docs/AUTOMATIC_ROUTINES.md) and [previous stability repairs](docs/V0.2_BUGS.md).
 
 <img src="docs/screenshots/compact.png" width="210" alt="Compact RVNFlow timer with ten progress dots" />
 <img src="docs/screenshots/expanded.png" width="350" alt="Expanded RVNFlow timer and scrollable task list" />
@@ -17,6 +18,7 @@ they are not evidence of native Windows behavior.
 - A 210 × 105 compact widget and 350 × 560 expanded workspace.
 - Rust-owned focus, short-break and long-break sessions; pause, resume, reset and skip.
 - Sleep-aware timing, restart recovery, and ten quiet progress dots.
+- Automatic repeating rounds and optional long breaks every 2, 4, or another configured number of focus sessions.
 - Multiple task lists, completion tracking, editing, ordering, and a current focus task.
 - Three original alarms, custom WAV/MP3 import, two optional ticks, and separate volumes.
 - Always-on-top, tray controls, single instance, monitor-aware positioning, optional startup and notifications.
@@ -69,7 +71,7 @@ pnpm test
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Installer output: `src-tauri/target/release/bundle/nsis/RVNFlow_0.2.0_x64-setup.exe`.
+Installer output: `src-tauri/target/release/bundle/nsis/RVNFlow_0.2.1_x64-setup.exe`.
 
 ## Structure and architecture
 
