@@ -7,5 +7,9 @@ export default defineConfig({
   plugins: [tailwindcss(), svelte(), svelteTesting()],
   server: { port: 1420, strictPort: true },
   clearScreen: false,
-  test: { environment: 'jsdom', setupFiles: ['src/test-setup.ts'], include: ['src/**/*.test.ts'] },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['src/test-setup.ts'],
+    include: ['src/**/*.test.ts'],
+  },
 });
