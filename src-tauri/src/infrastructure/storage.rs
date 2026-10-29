@@ -24,6 +24,15 @@ impl Storage {
     pub fn load(&self) -> Result<AppData> {
         let path = self.directory.join("app-state.json");
         if !path.exists() {
+            let backup = self.directory.join("app-state.backup.json");
+            if backup.exists() {
+                let mut data = self.read(&backup)?;
+                data.recovery = Some(
+                    "The primary save was missing. Restored your previous saved state.".into(),
+                );
+                self.atomic(&path, &serde_json::to_vec_pretty(&data)?)?;
+                return Ok(data);
+            }
             return Ok(AppData::default());
         }
         match self.read(&path) {

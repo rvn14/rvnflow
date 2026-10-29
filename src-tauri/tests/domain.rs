@@ -161,3 +161,21 @@ fn settings_reject_invalid_ranges_and_nonfinite_volumes() {
     s.tick_volume = f32::NAN;
     assert!(s.validate().is_err());
 }
+
+#[test]
+fn missing_primary_recovers_existing_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Storage::new(dir.path().into()).unwrap();
+    let mut data = AppData::default();
+    let list = data.tasks.active_list_id.clone();
+    data.tasks.create(&list, "Preserve backup", 1).unwrap();
+    std::fs::write(
+        dir.path().join("app-state.backup.json"),
+        serde_json::to_vec(&data).unwrap(),
+    )
+    .unwrap();
+    let restored = store.load().unwrap();
+    assert_eq!(restored.tasks.tasks[0].title, "Preserve backup");
+    assert!(restored.recovery.is_some());
+    assert!(dir.path().join("app-state.json").exists());
+}

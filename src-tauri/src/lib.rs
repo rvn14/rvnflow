@@ -76,6 +76,9 @@ pub fn run() {
                     }
                 }
                 tauri::WindowEvent::Focused(false) => {
+                    if let Some(w) = app.get_webview_window("main") {
+                        let _ = services::window::clamp(&w);
+                    }
                     let _ = engine.update("window:changed", |_| Ok(()));
                 }
                 tauri::WindowEvent::ScaleFactorChanged { .. } => {

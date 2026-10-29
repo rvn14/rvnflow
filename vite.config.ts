@@ -8,6 +8,8 @@ export default defineConfig({
   server: { port: 1420, strictPort: true },
   clearScreen: false,
   test: {
+    pool: 'threads',
+    maxWorkers: 2,
     environment: 'jsdom',
     setupFiles: ['src/test-setup.ts'],
     include: ['src/**/*.test.ts'],

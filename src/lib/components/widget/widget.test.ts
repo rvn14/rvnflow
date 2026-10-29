@@ -131,6 +131,16 @@ describe('widget interactions', () => {
     app.accept(snapshot());
     expect(app.remaining).toBe(1000);
   });
+  it('rejects an older countdown sample at the same revision', () => {
+    const recent = snapshot();
+    recent.sampledAt = 100;
+    recent.timer.remainingMs = 500;
+    app.accept(recent);
+    const older = snapshot();
+    older.sampledAt = 90;
+    app.accept(older);
+    expect(app.remaining).toBe(500);
+  });
   it('reports IPC failures without optimistic data loss', async () => {
     vi.mocked(invoke).mockRejectedValue('Disk full');
     render(MiniWidget);
