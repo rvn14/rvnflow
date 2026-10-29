@@ -1,0 +1,62 @@
+name: Stable release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/check-version.mjs "$env:RELEASE_TAG"
+      - name: Required quality checks
+        shell: pwsh
+        run: ./scripts/check.ps1
+      - run: pnpm exec playwright test
+      - run: pnpm tauri build --bundles nsis
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe
+          if (!$files) { throw 'No installer was built' }
+          $files | ForEach-Object { $hash = Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256; "$($hash.Hash.ToLower())  $($_.Name)" } | Set-Content src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: stable-installers
+          path: src-tauri/target/release/bundle/nsis/*
+          if-no-files-found: error
+  publish:
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: stable-installers
+          path: installers
+      - name: Publish verified installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          @'
+          Download the Windows x64 setup executable and run it for your current user. Windows 10/11 and Microsoft Edge WebView2 are required. This installer is unsigned; Windows may display a SmartScreen warning. Verify SHA256SUMS.txt before installation. Existing tasks and settings are retained during updates.
+          '@ | Set-Content release-notes.md
+          $assets = (Get-ChildItem installers -File).FullName
+          gh release create "$env:RELEASE_TAG" @assets --repo "$env:GH_REPO" --verify-tag --title "RVNFlow $env:RELEASE_TAG" --notes-file release-notes.md --generate-notes --latest

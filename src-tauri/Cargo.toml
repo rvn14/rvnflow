@@ -33,7 +33,7 @@ rodio = { version = "0.23", default-features = false, features = ["playback", "w
 tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_System_SystemInformation"] }
+windows-sys = { version = "0.61", features = ["Win32_System_SystemInformation", "Win32_Graphics_Dwm"] }
 
 [profile.release]
 codegen-units = 1

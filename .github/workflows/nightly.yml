@@ -1,0 +1,44 @@
+name: Development release
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: development-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    # Automatic publication is an explicit repository-owner opt-in.
+    if: github.event_name == 'workflow_dispatch' || (vars.PUBLISH_DEVELOPMENT == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Publish the latest successful main installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          # Download only a successful trusted main/push build; never execute artifact contents.
+          $runs = gh api "repos/$env:GH_REPO/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" | ConvertFrom-Json
+          if (!$runs.workflow_runs.Count) { throw 'No successful main CI build is available' }
+          $run = $runs.workflow_runs[0]
+          gh run download $run.id --repo "$env:GH_REPO" --name RVNFlow-Windows-x64 --dir installers
+          $files = Get-ChildItem installers/*.exe
+          if (!$files) { throw 'Verified CI installer is unavailable or expired; rerun CI' }
+          $tag = "dev-$($run.run_number)-$($run.head_sha.Substring(0,7))"
+          $files | ForEach-Object { $hash = Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256; "$($hash.Hash.ToLower())  $($_.Name)" } | Set-Content installers/SHA256SUMS.txt
+          "Development build from $($run.head_sha). Passed Windows CI run $($run.id). Download and run the per-user x64 setup executable. Unsigned; Windows SmartScreen may warn. This prerelease is for testing and is not a stable release." | Set-Content notes.md
+          $existing = gh api "repos/$env:GH_REPO/releases?per_page=100" | ConvertFrom-Json
+          if ($existing.tag_name -contains $tag) { Write-Output 'This verified build is already published'; exit 0 }
+          $assets = (Get-ChildItem installers -File).FullName
+          gh release create $tag @assets --repo "$env:GH_REPO" --target $run.head_sha --prerelease --latest=false --title "RVNFlow development $($run.run_number)" --notes-file notes.md

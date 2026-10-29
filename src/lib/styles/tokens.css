@@ -1,0 +1,22 @@
+:root {
+  font-family: 'Inter Variable', sans-serif;
+  color: #f8f5ff;
+  background: #343457;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --surface: #343457;
+  --surface-raised: #3d3d65;
+  --surface-deep: #2d2d4c;
+  --pink: #f1bdeb;
+  --lavender: #a6a4fa;
+  --lilac: #c6b9ec;
+  --text: #f8f5ff;
+  --muted: #b6b3d8;
+  --dot: #57577c;
+  --break: #afdbd0;
+  --border: #ffffff12;
+  --radius: 18px;
+  --radius-small: 9px;
+  --space: 16px;
+  --motion: 180ms;
+}
