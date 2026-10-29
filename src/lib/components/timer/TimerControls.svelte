@@ -5,6 +5,9 @@
   import { app } from '../../state/app.svelte';
   let { compact = false }: { compact?: boolean } = $props();
   const status = $derived(app.snapshot?.timer.status);
+  const startLabel = $derived(
+    app.snapshot?.timer.session === 'focus' ? 'Start focus' : 'Start break',
+  );
   const label = $derived(
     status === 'running'
       ? 'Pause session'
@@ -12,7 +15,7 @@
         ? 'Resume session'
         : status === 'completed'
           ? 'Start next session'
-          : 'Start focus',
+          : startLabel,
   );
 </script>
 
@@ -42,7 +45,7 @@
             ? 'Resume'
             : status === 'completed'
               ? 'Next session'
-              : 'Start focus'}</span
+              : startLabel}</span
       >{/if}
   </button>
   {#if !compact}<IconButton

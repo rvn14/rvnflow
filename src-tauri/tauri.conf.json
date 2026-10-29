@@ -30,6 +30,7 @@
     }
   },
   "bundle": {
+    "resources": ["licenses/*"],
     "active": true,
     "targets": ["nsis"],
     "publisher": "RVNFlow",
