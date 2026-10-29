@@ -2,5 +2,9 @@
   "identifier": "main",
   "description": "Only local events and dragging are available to the widget. Files and OS settings are mediated by Rust.",
   "windows": ["main"],
-  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten", "core:window:allow-start-dragging"]
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-start-dragging"
+  ]
 }
