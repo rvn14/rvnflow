@@ -42,6 +42,73 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('widget interactions', () => {
+  it('saves a four-session 50/10 routine with a separate long break every two sessions', async () => {
+    render(SettingsPanel, { close: vi.fn() });
+    await fireEvent.input(
+      screen.getByRole('spinbutton', { name: /Focus length/ }),
+      { target: { value: '50' } },
+    );
+    await fireEvent.input(
+      screen.getByRole('spinbutton', { name: /Short break/ }),
+      { target: { value: '10' } },
+    );
+    await fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Include long breaks' }),
+    );
+    await fireEvent.input(
+      screen.getByRole('spinbutton', { name: /Long break every/ }),
+      { target: { value: '2' } },
+    );
+    await fireEvent.input(
+      screen.getByRole('spinbutton', { name: /Long break length/ }),
+      { target: { value: '30' } },
+    );
+    await fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(invoke).toHaveBeenCalledWith('settings_update', {
+      settings: {
+        ...defaultSettings,
+        focusMinutes: 50,
+        shortBreakMinutes: 10,
+        sessionsPerCycle: 4,
+        longBreakEnabled: true,
+        longBreakInterval: 2,
+        longBreakMinutes: 30,
+      },
+    });
+    expect(
+      screen.queryByRole('checkbox', { name: /Auto-start/ }),
+    ).not.toBeInTheDocument();
+  });
+  it('keeps taskbar minimize, tray hide and collapse commands distinct', async () => {
+    render(ExpandedWidget);
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Minimize to taskbar' }),
+    );
+    expect(invoke).toHaveBeenLastCalledWith('window_minimize');
+    await fireEvent.click(screen.getByRole('button', { name: 'Hide to tray' }));
+    expect(invoke).toHaveBeenLastCalledWith('window_hide');
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Collapse widget' }),
+    );
+    expect(invoke).toHaveBeenLastCalledWith('window_set_mode', {
+      expanded: false,
+    });
+  });
+  it('previews a draft sound without saving preferences', async () => {
+    render(SettingsPanel, { close: vi.fn() });
+    await fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Include long breaks' }),
+    );
+    await fireEvent.click(screen.getByRole('button', { name: /^Preview$/ }));
+    expect(invoke).toHaveBeenCalledWith('audio_preview', {
+      kind: 'alarm',
+      settings: { ...defaultSettings, longBreakEnabled: true },
+    });
+    expect(invoke).not.toHaveBeenCalledWith(
+      'settings_update',
+      expect.anything(),
+    );
+  });
   it('labels the start control for a break session', () => {
     const state = snapshot();
     state.timer.session = 'shortBreak';
@@ -69,6 +136,10 @@ describe('widget interactions', () => {
     expect(
       screen.getByRole('button', { name: 'Collapse widget' }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('group', { name: 'Session type' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('01')).toBeInTheDocument();
   });
   it('pauses a running session', async () => {
     const state = snapshot();

@@ -17,6 +17,16 @@ export const api = {
   mode: (expanded: boolean) =>
     invoke<Snapshot>('window_set_mode', { expanded }),
   close: () => invoke<void>('window_close'),
-  preview: (kind: 'alarm' | 'tick') => invoke<void>('audio_preview', { kind }),
+  minimize: () => invoke<void>('window_minimize'),
+  hide: () => invoke<void>('window_hide'),
+  quit: () => invoke<void>('app_quit'),
+  startup: () =>
+    invoke<{ ready: boolean; loading: boolean; error: string | null }>(
+      'get_startup_status',
+    ),
+  retryStartup: () => invoke<void>('startup_retry'),
+  frontendReady: () => invoke<void>('frontend_ready'),
+  preview: (kind: 'alarm' | 'tick', settings?: Settings) =>
+    invoke<void>('audio_preview', { kind, settings }),
   importAudio: () => invoke<Snapshot>('audio_import_custom'),
 };

@@ -4,7 +4,7 @@
     transform var(--motion);
 }
 .dot.pulse {
-  animation: breathe 3s ease-in-out infinite;
+  animation: breathe 1.2s ease-out;
 }
 @keyframes breathe {
   50% {

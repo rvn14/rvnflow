@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, ChevronDown, Pencil, Trash2, ListTodo } from '@lucide/svelte';
+  import { Plus, ChevronDown, Pencil, Trash2 } from '@lucide/svelte';
   import IconButton from '../common/IconButton.svelte';
   import TaskItem from './TaskItem.svelte';
   import { api } from '../../api/commands';
@@ -20,8 +20,9 @@
   const progress = $derived(taskProgress(tasks));
   async function add() {
     if (
-      await app.run(() =>
-        api.task({ action: 'create', listId: list.id, title }),
+      await app.run(
+        () => api.task({ action: 'create', listId: list.id, title }),
+        'Task added successfully.',
       )
     )
       title = '';
@@ -55,7 +56,7 @@
       class="task-section-toggle"
       aria-expanded={open}
       onclick={() => (open = !open)}
-      ><ListTodo size={15} /><span>YOUR TASKS</span><ChevronDown
+      ><span>Tasks</span><ChevronDown
         size={12}
         class={open ? '' : 'rotated'}
       /></button
@@ -176,7 +177,7 @@
         </li>{/each}
     </ul>
     <form
-      class="task-input"
+      class="task-input task-composer"
       onsubmit={(e) => {
         e.preventDefault();
         void add();
@@ -185,13 +186,15 @@
       <Plus size={15} /><input
         aria-label="New task"
         bind:value={title}
-        placeholder="What are you working on?"
+        placeholder="Add a task…"
+        disabled={app.busy}
         maxlength="200"
         required
       /><button
         class="text-button"
         type="submit"
-        disabled={app.busy || !title.trim()}>Add</button
+        disabled={app.busy || !title.trim()}
+        >{app.busy ? 'Saving…' : 'Add'}</button
       >
     </form>
   {/if}

@@ -8,28 +8,14 @@ fn native(error: tauri::Error) -> AppError {
 }
 pub fn apply(app: &tauri::AppHandle, data: &AppData, restore: bool) -> Result<()> {
     if let Some(window) = app.get_webview_window("main") {
-        #[cfg(windows)]
-        if let Ok(handle) = window.hwnd() {
-            use windows_sys::Win32::Graphics::Dwm::{
-                DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute,
-            };
-            let preference = DWMWCP_ROUND;
-            // DWM owns the HWND; the pointer remains valid for this synchronous call.
-            // Windows 10 may reject the attribute, retaining a reliable opaque window.
-            unsafe {
-                DwmSetWindowAttribute(
-                    handle.0,
-                    DWMWA_WINDOW_CORNER_PREFERENCE as u32,
-                    std::ptr::from_ref(&preference).cast(),
-                    std::mem::size_of_val(&preference) as u32,
-                );
-            }
-        }
+        // CSS draws the only rounded surface. A native shadow adds an extra border
+        // and halo on Windows, while an opaque webview fills the transparent corners.
+        window.set_shadow(false).map_err(native)?;
         window
             .set_always_on_top(data.settings.always_on_top)
             .map_err(native)?;
         let size = if data.window.expanded {
-            (350.0, 520.0)
+            (350.0, 560.0)
         } else {
             (210.0, 105.0)
         };
@@ -87,7 +73,16 @@ pub fn clamp(window: &tauri::WebviewWindow) -> Result<()> {
 pub fn show(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = clamp(&window);
+        let _ = window.set_skip_taskbar(false);
+        let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+pub fn hide(app: &tauri::AppHandle) -> Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide().map_err(native)?;
+        window.set_skip_taskbar(true).map_err(native)?;
+    }
+    Ok(())
 }

@@ -6,6 +6,7 @@
     Trash2,
     ChevronUp,
     ChevronDown,
+    Ellipsis,
   } from '@lucide/svelte';
   import IconButton from '../common/IconButton.svelte';
   import type { Task } from '../../types/contracts';
@@ -32,6 +33,7 @@
   } = $props();
   let editing = $state(false);
   let value = $state('');
+  let more = $state(false);
   async function save() {
     if (await edit(value)) editing = false;
   }
@@ -71,12 +73,19 @@
         active={current}
         onclick={associate}><Crosshair size={13} /></IconButton
       >
-      <div class="task-extra">
+      <IconButton
+        label={`More actions for ${task.title}`}
+        active={more}
+        onclick={() => (more = !more)}><Ellipsis size={14} /></IconButton
+      >
+    </div>
+    {#if more}<div class="task-menu">
         <IconButton
           label={`Edit ${task.title}`}
           onclick={() => {
             value = task.title;
             editing = true;
+            more = false;
           }}><Pencil size={12} /></IconButton
         >
         <IconButton
@@ -92,7 +101,6 @@
         <IconButton label={`Delete ${task.title}`} onclick={remove}
           ><Trash2 size={12} /></IconButton
         >
-      </div>
-    </div>
+      </div>{/if}
   {/if}
 </li>

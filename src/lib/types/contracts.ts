@@ -6,6 +6,8 @@ export interface Timer {
   durationMs: number;
   remainingMs: number;
   completedFocus: number;
+  routineCompletedFocus?: number;
+  routineComplete?: boolean;
   taskId: string | null;
   wallDeadlineMs: number | null;
 }
@@ -28,6 +30,9 @@ export interface Settings {
   shortBreakMinutes: number;
   longBreakMinutes: number;
   sessionsPerCycle: number;
+  longBreakEnabled: boolean;
+  longBreakInterval: number;
+  repeatRoutine: boolean;
   reducedMotion: boolean;
   alwaysOnTop: boolean;
   alarmEnabled: boolean;
@@ -49,7 +54,12 @@ export interface Snapshot {
   timer: Timer;
   tasks: { lists: TaskList[]; tasks: Task[]; activeListId: string };
   window: { expanded: boolean; position: [number, number] | null };
-  history: { finishedAt: number; session: Session; taskId: string | null }[];
+  history: {
+    finishedAt: number;
+    session: Session;
+    taskId: string | null;
+    nextSession?: Session | null;
+  }[];
   customAudio: boolean;
   recovery: string | null;
 }
@@ -66,6 +76,9 @@ export const defaultSettings: Settings = {
   shortBreakMinutes: 5,
   longBreakMinutes: 15,
   sessionsPerCycle: 4,
+  longBreakEnabled: false,
+  longBreakInterval: 2,
+  repeatRoutine: true,
   reducedMotion: false,
   alwaysOnTop: true,
   alarmEnabled: true,
@@ -74,7 +87,7 @@ export const defaultSettings: Settings = {
   tickEnabled: false,
   tick: 'mechanical',
   tickVolume: 0.2,
-  notifications: false,
+  notifications: true,
   startWithWindows: false,
   rememberPosition: true,
   closeToTray: true,

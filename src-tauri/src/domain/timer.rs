@@ -26,6 +26,12 @@ pub struct Timer {
     pub duration_ms: u64,
     pub remaining_ms: u64,
     pub completed_focus: u32,
+    #[serde(default)]
+    pub routine_completed_focus: u32,
+    #[serde(default)]
+    pub routine_complete: bool,
+    #[serde(default)]
+    pub focus_since_long_break: u32,
     pub task_id: Option<String>,
     pub wall_deadline_ms: Option<u64>,
     #[serde(skip)]
@@ -44,6 +50,9 @@ impl Timer {
             duration_ms: settings.focus_minutes as u64 * 60_000,
             remaining_ms: settings.focus_minutes as u64 * 60_000,
             completed_focus: 0,
+            routine_completed_focus: 0,
+            routine_complete: false,
+            focus_since_long_break: 0,
             task_id: None,
             wall_deadline_ms: None,
             deadline: None,
@@ -103,14 +112,16 @@ impl Timer {
         self.remaining_ms = self.duration_ms;
         self.deadline = None;
         self.wall_deadline_ms = None;
+        self.routine_complete = false;
+        if session == Session::LongBreak {
+            self.focus_since_long_break = 0;
+        }
     }
     pub fn next(&self, settings: &Settings) -> Session {
         match self.session {
             Session::Focus
-                if self.completed_focus > 0
-                    && self
-                        .completed_focus
-                        .is_multiple_of(settings.sessions_per_cycle) =>
+                if settings.long_break_enabled
+                    && self.focus_since_long_break >= settings.long_break_interval =>
             {
                 Session::LongBreak
             }
@@ -123,7 +134,13 @@ impl Timer {
             return;
         }
         if self.status == Status::Completed {
-            self.select(self.next(settings), settings);
+            if self.routine_complete {
+                self.routine_completed_focus = 0;
+                self.focus_since_long_break = 0;
+                self.select(Session::Focus, settings);
+            } else {
+                self.select(self.next(settings), settings);
+            }
         }
         self.status = Status::Running;
         self.deadline = Some(now.saturating_add(self.remaining_ms));
@@ -147,16 +164,55 @@ impl Timer {
         self.wall_deadline_ms = None;
         if self.session == Session::Focus {
             self.completed_focus = self.completed_focus.saturating_add(1);
+            self.routine_completed_focus = self.routine_completed_focus.saturating_add(1);
+            self.focus_since_long_break = self.focus_since_long_break.saturating_add(1);
         }
         true
     }
-    pub fn skip(&mut self, settings: &Settings) {
+    pub fn advance(&mut self, now: u64, wall: u64, settings: &Settings) -> Option<Session> {
+        let finished = self.session;
+        if !self.complete(now) {
+            return None;
+        }
+        if finished == Session::Focus
+            && self.routine_completed_focus >= settings.sessions_per_cycle
+            && !settings.repeat_routine
+        {
+            self.routine_complete = true;
+            return Some(finished);
+        }
+        let next = self.next(settings);
+        self.select(next, settings);
+        if next == Session::Focus && self.routine_completed_focus >= settings.sessions_per_cycle {
+            self.routine_completed_focus = 0;
+        }
+        // Every scheduled phase starts automatically. Anchor to the current wake
+        // time, not the missed deadline, so suspend cannot consume the whole routine.
+        self.start(now, wall, settings);
+        Some(finished)
+    }
+    pub fn skip(&mut self, now: u64, wall: u64, settings: &Settings) {
+        if self.routine_complete {
+            return;
+        }
         // A skipped focus always leads to a short break and never earns a cycle credit.
+        let status = self.status;
         let next = if self.session == Session::Focus {
             Session::ShortBreak
         } else {
             Session::Focus
         };
         self.select(next, settings);
+        if next == Session::Focus
+            && self.routine_completed_focus >= settings.sessions_per_cycle
+            && settings.repeat_routine
+        {
+            self.routine_completed_focus = 0;
+        }
+        if status == Status::Running {
+            self.start(now, wall, settings);
+        } else if status == Status::Paused {
+            self.status = Status::Paused;
+        }
     }
 }

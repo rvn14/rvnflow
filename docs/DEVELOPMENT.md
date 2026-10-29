@@ -1,5 +1,13 @@
 # Development
 
+Run `./scripts/test-native.ps1` for isolated Windows lifecycle regression checks.
+It builds a debug-only harness with a separate app identifier and temporary fixture data;
+it does not use your task directory. The harness verifies frontend/native IPC readiness,
+window sizing, running timer continuity, minimize/restore, tray hide/show, exactly-once
+completion, next-session selection, second-instance activation and saved-data restart.
+The ordinary production installer build must follow it to restore production configuration.
+These programmatic checks do not establish visible toast delivery or audible output.
+
 Requirements: Windows 10/11 x64, Node 24 LTS, pnpm 12.16.1, Rust stable MSVC,
 Visual Studio C++ Build Tools and Windows SDK, and WebView2. The current compatible
 TypeScript line is 6; svelte-check requires an additional compatibility setup for 7.

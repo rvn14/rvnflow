@@ -11,13 +11,18 @@
 
 <div class="mini-widget">
   <div class="mini-heading">
-    <span data-tauri-drag-region class="mini-session"
+    <span
+      data-tauri-drag-region
+      class="mini-session"
+      title={app.completionMessage || undefined}
       ><span class="status-dot" class:break-status={timer.session !== 'focus'}
-      ></span>{timer.status === 'completed'
+      ></span>{timer.routineComplete
         ? 'COMPLETE'
         : timer.session === 'focus'
           ? 'FOCUS'
-          : 'BREATHE'}</span
+          : timer.session === 'longBreak'
+            ? 'LONG BREAK'
+            : 'SHORT BREAK'}</span
     ><IconButton
       label="Expand widget"
       onclick={() => app.run(() => api.mode(true))}

@@ -1,111 +1,152 @@
 use crate::{
     domain::timer::Status,
-    error::{Result, invalid},
+    error::Result,
     infrastructure::{
         clock::{now_ms, wall_ms},
+        diagnostics, notifications,
         storage::Storage,
     },
-    services::audio::Audio,
+    services::{audio::Audio, repository::Repository},
     state::{AppData, Completion},
 };
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 pub struct Engine {
-    pub data: Mutex<AppData>,
-    pub wake: Condvar,
+    pub repository: Repository,
     pub storage: Storage,
     pub audio: Audio,
     pub app: tauri::AppHandle,
+    signal: Mutex<u64>,
+    wake: Condvar,
+    pub position: Mutex<Option<(i32, i32)>>,
 }
 impl Engine {
     pub fn new(app: tauri::AppHandle, storage: Storage) -> Result<Arc<Self>> {
         let mut data = storage.load()?;
         data.timer.recover(now_ms(), wall_ms());
         let audio = Audio::new(app.clone(), storage.directory.join("custom-audio"));
-        let engine = Arc::new(Self {
-            data: Mutex::new(data),
-            wake: Condvar::new(),
+        Ok(Arc::new(Self {
+            repository: Repository::new(data),
             storage,
             audio,
             app,
-        });
-        // Persist recovered completion before exposing the first snapshot.
-        engine.update("timer:changed", |_| Ok(()))?;
-        Ok(engine)
-    }
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, AppData>> {
-        self.data
-            .lock()
-            .map_err(|_| invalid("The application state is unavailable. Restart RVNFlow."))
+            signal: Mutex::new(0),
+            wake: Condvar::new(),
+            position: Mutex::new(None),
+        }))
     }
     pub fn snapshot(&self) -> Result<AppData> {
-        Ok(self.lock()?.snapshot(now_ms()))
+        Ok(self.repository.snapshot()?.snapshot(now_ms()))
     }
     pub fn update(
         &self,
         event: &str,
         operation: impl FnOnce(&mut AppData) -> Result<()>,
     ) -> Result<AppData> {
-        let mut guard = self.lock()?;
-        let mut candidate = guard.clone();
-        let completed = candidate.timer.complete(now_ms());
-        if completed {
-            candidate.history.push(Completion {
-                finished_at: wall_ms(),
-                session: candidate.timer.session,
-                task_id: candidate.timer.task_id.clone(),
-            });
-            // Bound history, never tasks. History is informational in version 1.
-            if candidate.history.len() > 1000 {
-                candidate.history.remove(0);
+        // Closures only mutate domain data. Commands perform OS effects afterwards.
+        let previous = self.repository.snapshot()?;
+        let mut completion = None;
+        let result = self.repository.transact(
+            |d| {
+                if let Some(finished) = d.timer.advance(now_ms(), wall_ms(), &d.settings) {
+                    let record = Completion {
+                        finished_at: wall_ms(),
+                        session: finished,
+                        task_id: d.timer.task_id.clone(),
+                        next_session: (!d.timer.routine_complete).then_some(d.timer.session),
+                    };
+                    d.history.push(record.clone());
+                    if d.history.len() > 1000 {
+                        d.history.remove(0);
+                    }
+                    completion = Some(record);
+                }
+                operation(d)?;
+                if d.timer.status == Status::Running {
+                    d.timer.remaining_ms = d.timer.remaining(now_ms());
+                    d.timer.wall_deadline_ms = Some(wall_ms().saturating_add(d.timer.remaining_ms));
+                }
+                Ok(())
+            },
+            |d| self.storage.save(d),
+        );
+        let data = match result {
+            Ok(data) => data,
+            Err(error) => {
+                diagnostics::record("transaction", "failed");
+                return Err(error);
             }
-            self.commit(&mut guard, candidate.clone())?;
-            self.completed(&guard);
+        };
+        // No repository writer/data locks survive into notifications, events or audio.
+        let snapshot = data.snapshot(now_ms());
+        if let Some(record) = completion {
+            self.completed(&snapshot, &record);
         }
-        operation(&mut candidate)?;
-        self.commit(&mut guard, candidate)?;
-        let snapshot = guard.snapshot(now_ms());
+        if previous.settings.tick_enabled
+            && (!data.settings.tick_enabled || data.timer.status != Status::Running)
+        {
+            self.audio.stop_ticks();
+        }
         let _ = self.app.emit(event, &snapshot);
-        self.wake.notify_one();
+        if let Ok(mut generation) = self.signal.lock() {
+            *generation = generation.wrapping_add(1);
+            self.wake.notify_one();
+        }
         Ok(snapshot)
     }
-    fn commit(&self, current: &mut AppData, mut next: AppData) -> Result<()> {
-        next.revision = current.revision.saturating_add(1);
-        // Save a fresh wall deadline without modifying the boot-clock deadline.
-        if next.timer.status == Status::Running {
-            next.timer.remaining_ms = next.timer.remaining(now_ms());
-            next.timer.wall_deadline_ms = Some(wall_ms().saturating_add(next.timer.remaining_ms));
-        }
-        self.storage.save(&next)?;
-        *current = next;
-        Ok(())
-    }
-    fn completed(&self, data: &AppData) {
+    fn completed(&self, data: &AppData, record: &Completion) {
+        diagnostics::record("timer", "completed");
         self.audio.stop_ticks();
-        let _ = self.app.emit("timer:completed", data.snapshot(now_ms()));
+        let _ = self.app.emit("timer:completed", data);
         if data.settings.alarm_enabled
-            && let Err(error) =
-                self.audio
-                    .play(&data.settings.alarm, data.settings.alarm_volume, false)
+            && self
+                .audio
+                .play(&data.settings.alarm, data.settings.alarm_volume, false)
+                .is_err()
         {
-            let _ = self.app.emit("app:error", error.to_string());
+            self.report("Audio playback is unavailable.", "alarm");
         }
-        if data.settings.notifications
-            && let Err(error) = self
+        let foreground = self.app.get_webview_window("main").is_some_and(|w| {
+            w.is_visible().unwrap_or(false)
+                && !w.is_minimized().unwrap_or(false)
+                && w.is_focused().unwrap_or(false)
+        });
+        if data.settings.notifications && !foreground {
+            let (title, body) = notifications::content(record, &data.settings);
+            if self
                 .app
                 .notification()
                 .builder()
-                .title("Session complete")
-                .body("A moment to breathe. Start your next session when you are ready.")
+                .title(title)
+                .body(body)
                 .show()
-        {
-            let _ = self
-                .app
-                .emit("app:error", format!("Notification unavailable: {error}"));
+                .is_err()
+            {
+                self.report(
+                    "Windows could not show a notification. Check Windows notification settings.",
+                    "notification",
+                );
+            }
         }
+    }
+    pub fn report(&self, message: &str, code: &str) {
+        diagnostics::record(code, "failed");
+        let _ = self.app.emit("app:error", message);
+    }
+    pub fn persist_position(&self) -> Result<()> {
+        let position = self.position.lock().ok().and_then(|mut p| p.take());
+        if let Some(position) = position {
+            self.update("window:changed", |d| {
+                if d.settings.remember_position {
+                    d.window.position = Some(position);
+                }
+                Ok(())
+            })?;
+        }
+        Ok(())
     }
     pub fn spawn(engine: Arc<Self>) {
         std::thread::spawn(move || {
@@ -113,26 +154,30 @@ impl Engine {
             let mut last_boot = now_ms();
             let mut last_wall = wall_ms();
             loop {
-                let Ok(guard) = engine.lock() else { return };
-                let running = guard.timer.status == Status::Running;
-                let remaining = guard.timer.remaining(now_ms());
-                if running && remaining == 0 {
-                    drop(guard);
-                    if let Err(error) = engine.update("timer:changed", |_| Ok(())) {
-                        let _ = engine.app.emit("app:error", error.to_string());
+                let generation = match engine.signal.lock() {
+                    Ok(g) => *g,
+                    Err(_) => return,
+                };
+                let Ok(data) = engine.snapshot() else { return };
+                let running = data.timer.status == Status::Running;
+                if running && data.timer.remaining_ms == 0 {
+                    if engine.update("timer:changed", |_| Ok(())).is_err() {
+                        engine.report(
+                            "Unable to save session completion. Check your disk and retry.",
+                            "completion-save",
+                        );
                         std::thread::sleep(Duration::from_secs(5));
                     }
                     continue;
                 }
-                if running && guard.settings.tick_enabled {
-                    let elapsed = guard.timer.duration_ms.saturating_sub(remaining) / 1000;
-                    let key = (guard.timer.deadline, elapsed);
-                    if elapsed > 0 && last_tick != Some(key) {
-                        let _ = engine.audio.play(
-                            &guard.settings.tick,
-                            guard.settings.tick_volume,
-                            true,
-                        );
+                if running && data.settings.tick_enabled {
+                    let second = (data.timer.duration_ms - data.timer.remaining_ms) / 1000;
+                    let key = (data.timer.deadline, second);
+                    if second > 0 && last_tick != Some(key) {
+                        let _ =
+                            engine
+                                .audio
+                                .play(&data.settings.tick, data.settings.tick_volume, true);
                         last_tick = Some(key);
                     }
                 } else {
@@ -142,28 +187,36 @@ impl Engine {
                 let boot = now_ms();
                 let wall = wall_ms();
                 if running
-                    && ((boot.saturating_sub(last_boot) > 2000)
+                    && (boot.saturating_sub(last_boot) > 2000
                         || (wall as i128
                             - last_wall as i128
                             - boot.saturating_sub(last_boot) as i128)
                             .abs()
                             > 2000)
                 {
-                    // Resynchronize rendering after suspend or a system-clock change, not every second.
-                    let _ = engine.app.emit("timer:changed", guard.snapshot(boot));
+                    let _ = engine.app.emit("timer:changed", &data);
                 }
                 last_boot = boot;
                 last_wall = wall;
+                let Ok(signal) = engine.signal.lock() else {
+                    return;
+                };
+                if *signal != generation {
+                    continue;
+                }
                 if running {
-                    let delay = remaining % 1000;
-                    let result = engine.wake.wait_timeout(
-                        guard,
-                        Duration::from_millis(if delay == 0 { 1000 } else { delay }),
-                    );
-                    if result.is_err() {
+                    let delay = data.timer.remaining_ms % 1000;
+                    if engine
+                        .wake
+                        .wait_timeout(
+                            signal,
+                            Duration::from_millis(if delay == 0 { 1000 } else { delay }),
+                        )
+                        .is_err()
+                    {
                         return;
                     }
-                } else if engine.wake.wait(guard).is_err() {
+                } else if engine.wake.wait(signal).is_err() {
                     return;
                 }
             }

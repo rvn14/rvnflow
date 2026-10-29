@@ -1,6 +1,6 @@
 [package]
 name = "rvnflow"
-version = "0.1.0"
+version = "0.2.1"
 description = "A little space to focus. An offline Windows Pomodoro widget."
 authors = ["RVNFlow contributors"]
 edition = "2024"
@@ -33,7 +33,7 @@ rodio = { version = "0.23", default-features = false, features = ["playback", "w
 tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_System_SystemInformation", "Win32_Graphics_Dwm"] }
+windows-sys = { version = "0.61", features = ["Win32_System_SystemInformation"] }
 
 [profile.release]
 codegen-units = 1

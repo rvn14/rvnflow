@@ -1,21 +1,21 @@
 :root {
   font-family: 'Inter Variable', sans-serif;
   color: #f8f5ff;
-  background: #343457;
+  background: transparent;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --surface: #343457;
-  --surface-raised: #3d3d65;
-  --surface-deep: #2d2d4c;
+  --surface-raised: #3a3a5e;
+  --surface-deep: #2e2e4d;
   --pink: #f1bdeb;
   --lavender: #a6a4fa;
   --lilac: #c6b9ec;
   --text: #f8f5ff;
-  --muted: #b6b3d8;
+  --muted: #aaa7ca;
   --dot: #57577c;
   --break: #afdbd0;
-  --border: #ffffff12;
-  --radius: 18px;
+  --border: #c6b9ec1a;
+  --radius: 16px;
   --radius-small: 9px;
   --space: 16px;
   --motion: 180ms;

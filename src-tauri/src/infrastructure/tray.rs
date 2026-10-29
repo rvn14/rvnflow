@@ -1,53 +1,75 @@
 use crate::{
     domain::timer::Status,
     infrastructure::clock::{now_ms, wall_ms},
-    services::{engine::Engine, window},
+    services::{startup::Startup, window},
 };
-use std::sync::Arc;
 use tauri::{
     Manager,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 pub fn install(app: &tauri::AppHandle) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Show / hide RVNFlow", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show RVNFlow", true, None::<&str>)?;
+    let hide = MenuItem::with_id(app, "hide", "Hide to tray", true, None::<&str>)?;
     let timer = MenuItem::with_id(app, "timer", "Start / pause session", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit RVNFlow", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &timer, &quit])?;
+    let menu = Menu::with_items(app, &[&show, &hide, &timer, &quit])?;
     let mut tray = TrayIconBuilder::new()
         .tooltip("RVNFlow · A little space to focus")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| {
-            let engine = app.state::<Arc<Engine>>();
-            match event.id.as_ref() {
-                "show" => {
-                    if let Some(w) = app.get_webview_window("main") {
-                        if w.is_visible().unwrap_or(false) {
-                            let _ = w.hide();
-                        } else {
-                            window::show(app);
+            let app = app.clone();
+            let id = event.id.as_ref().to_owned();
+            tauri::async_runtime::spawn_blocking(move || {
+                if id == "show" {
+                    window::show(&app);
+                    return;
+                }
+                let state = app.state::<Startup>();
+                let Ok(engine) = state.ready() else {
+                    if id == "quit" {
+                        app.exit(0);
+                    }
+                    return;
+                };
+                match id.as_str() {
+                    "hide" => {
+                        let _ = engine.persist_position();
+                        let _ = window::hide(&app);
+                    }
+                    "timer" => {
+                        if engine
+                            .update("timer:changed", |d| {
+                                if d.timer.status == Status::Running {
+                                    d.timer.pause(now_ms());
+                                } else {
+                                    d.timer.start(now_ms(), wall_ms(), &d.settings);
+                                }
+                                Ok(())
+                            })
+                            .is_err()
+                        {
+                            engine.report(
+                                "Unable to save the timer. Please try again.",
+                                "tray-timer",
+                            );
                         }
                     }
-                }
-                "timer" => {
-                    if let Err(error) = engine.update("timer:changed", |d| {
-                        if d.timer.status == Status::Running {
-                            d.timer.pause(now_ms());
+                    "quit" => {
+                        if engine
+                            .persist_position()
+                            .and_then(|_| engine.update("window:changed", |_| Ok(())))
+                            .is_ok()
+                        {
+                            app.exit(0);
                         } else {
-                            d.timer.start(now_ms(), wall_ms(), &d.settings);
+                            engine.report("Unable to save before quitting.", "quit-save");
                         }
-                        Ok(())
-                    }) {
-                        use tauri::Emitter;
-                        let _ = app.emit("app:error", error.to_string());
                     }
+                    _ => {}
                 }
-                "quit" if engine.update("timer:changed", |_| Ok(())).is_ok() => {
-                    app.exit(0);
-                }
-                _ => {}
-            }
+            });
         })
         .on_tray_icon_event(|tray, event| {
             if matches!(
@@ -58,7 +80,8 @@ pub fn install(app: &tauri::AppHandle) -> tauri::Result<()> {
                     ..
                 }
             ) {
-                window::show(tray.app_handle());
+                let app = tray.app_handle().clone();
+                tauri::async_runtime::spawn_blocking(move || window::show(&app));
             }
         });
     if let Some(icon) = app.default_window_icon() {
