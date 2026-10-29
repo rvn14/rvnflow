@@ -1,9 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
-import { defaultSettings } from '../../src/lib/types/contracts';
+import { defaultSettings, type Settings } from '../../src/lib/types/contracts';
 
-async function mockNative(page: Page, count: number) {
+async function mockNative(page: Page, count: number, listCount = 1) {
   await page.addInitScript(
-    ({ settings, count }) => {
+    ({ settings, count, listCount }) => {
       const state = {
         schemaVersion: 3,
         revision: 1,
@@ -18,7 +18,18 @@ async function mockNative(page: Page, count: number) {
           wallDeadlineMs: null,
         },
         tasks: {
-          lists: [{ id: 'today', name: 'Today' }],
+          lists: [
+            { id: 'today', name: 'Today' },
+            ...Array.from({ length: listCount - 1 }, (_, i) => ({
+              id: `list-${i}`,
+              name:
+                i === 0
+                  ? 'Essentials'
+                  : i === 1
+                    ? 'Unavailable list'
+                    : `Project ${i}`,
+            })),
+          ],
           tasks: Array.from({ length: count }, (_, i) => ({
             id: `${i}`,
             listId: 'today',
@@ -48,6 +59,7 @@ async function mockNative(page: Page, count: number) {
             command: string,
             args: {
               expanded?: boolean;
+              settings?: Settings;
               change?: { action: string; title: string; id: string };
             },
           ) => {
@@ -57,7 +69,14 @@ async function mockNative(page: Page, count: number) {
             if (command === 'frontend_ready') return;
             if (command === 'window_set_mode')
               state.window.expanded = !!args.expanded;
+            if (command === 'settings_update' && args.settings)
+              state.settings = args.settings;
             if (command === 'task_action' && args.change) {
+              if (args.change.action === 'selectList') {
+                if (args.change.id === 'list-1')
+                  throw 'Unable to save: disk full';
+                state.tasks.activeListId = args.change.id;
+              }
               if (args.change.action === 'create') {
                 if (args.change.title === 'Fail to save')
                   throw 'Unable to save: disk full';
@@ -85,7 +104,7 @@ async function mockNative(page: Page, count: number) {
         },
       });
     },
-    { settings: defaultSettings, count },
+    { settings: defaultSettings, count, listCount },
   );
 }
 
@@ -200,4 +219,115 @@ test('failed task creation retains text; task editing stays inside the row', asy
   const list = await page.locator('.task-list').boundingBox();
   const composer = await page.locator('.task-composer').boundingBox();
   expect(list!.y + list!.height).toBeLessThanOrEqual(composer!.y);
+});
+
+test('styled list menu supports pointer, keyboard, scrolling and failed saves', async ({
+  page,
+}) => {
+  await mockNative(page, 0, 18);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Expand widget' }).click();
+  await page.setViewportSize({ width: 350, height: 560 });
+  const select = page.getByRole('combobox', { name: 'Active task list' });
+  await select.click();
+  const menu = page.getByRole('listbox', { name: 'Active task list' });
+  await expect(menu).toBeVisible();
+  const box = await menu.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(8);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(552);
+  await page.getByRole('option', { name: 'Essentials', exact: true }).click();
+  await expect(select).toHaveText('Essentials');
+  await expect(menu).toBeHidden();
+  await select.press('ArrowDown');
+  await select.press('End');
+  await expect(
+    page.getByRole('option', { name: 'Project 16', exact: true }),
+  ).toBeInViewport();
+  await select.press('Home');
+  await select.press('Enter');
+  await expect(select).toHaveText('Today');
+  await select.click();
+  await page.getByRole('option', { name: 'Unavailable list' }).click();
+  await expect(page.getByRole('alert')).toContainText('disk full');
+  await expect(select).toHaveText('Today');
+  await page.getByRole('button', { name: 'Dismiss notification' }).click();
+  await select.click();
+  await select.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(select).toBeFocused();
+  await select.press('e');
+  await select.press('Enter');
+  await expect(select).toHaveText('Essentials');
+  await select.click();
+  await page.getByRole('timer').click();
+  await expect(menu).toBeHidden();
+});
+
+test('sound menus fit the settings panel and save their selections', async ({
+  page,
+}) => {
+  await mockNative(page, 0);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Expand widget' }).click();
+  await page.setViewportSize({ width: 350, height: 560 });
+  await page
+    .getByRole('button', { name: 'Open settings', exact: true })
+    .click();
+  const alarm = page.getByRole('combobox', { name: 'Alarm', exact: true });
+  await alarm.scrollIntoViewIfNeeded();
+  await alarm.click();
+  const menu = page.getByRole('listbox', { name: 'Alarm', exact: true });
+  await expect(menu).toBeVisible();
+  const box = await menu.boundingBox();
+  expect(box!.y).toBeGreaterThanOrEqual(8);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(552);
+  await page.screenshot({
+    path: 'docs/screenshots/sound-dropdown.png',
+    omitBackground: true,
+    animations: 'disabled',
+  });
+  await page.getByRole('option', { name: 'Classic bell' }).click();
+  await expect(alarm).toHaveText('Classic bell');
+  const tick = page.getByRole('combobox', { name: 'Tick', exact: true });
+  await tick.scrollIntoViewIfNeeded();
+  await tick.press('Space');
+  await tick.press('ArrowDown');
+  await tick.press('Enter');
+  await expect(tick).toHaveText('Soft digital');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Dismiss notification' }).click();
+  await page.getByRole('button', { name: 'Back to timer' }).click();
+  await page
+    .getByRole('button', { name: 'Open settings', exact: true })
+    .click();
+  await expect(alarm).toHaveText('Classic bell');
+  await expect(tick).toHaveText('Soft digital');
+});
+
+test('text and number fields have no focus ring', async ({ page }) => {
+  await mockNative(page, 1);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Expand widget' }).click();
+  await page.setViewportSize({ width: 350, height: 560 });
+  async function expectNoRing(selector: ReturnType<Page['getByRole']>) {
+    await selector.focus();
+    expect(
+      await selector.evaluate((el) => ({
+        outline: getComputedStyle(el).outlineStyle,
+        shadow: getComputedStyle(el).boxShadow,
+      })),
+    ).toEqual({ outline: 'none', shadow: 'none' });
+  }
+  await expectNoRing(
+    page.getByRole('textbox', { name: 'New task', exact: true }),
+  );
+  await page.getByRole('button', { name: 'Rename task list' }).click();
+  await expectNoRing(page.getByRole('textbox', { name: 'List name' }));
+  await page
+    .getByRole('button', { name: 'Open settings', exact: true })
+    .click();
+  await expectNoRing(
+    page.getByRole('spinbutton', { name: 'Focus length minutes' }),
+  );
 });

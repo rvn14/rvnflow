@@ -4,6 +4,7 @@
   import { api } from '../../api/commands';
   import { defaultSettings } from '../../types/contracts';
   import IconButton from '../common/IconButton.svelte';
+  import Select from '../common/Select.svelte';
   let { close }: { close: () => void } = $props();
   let draft = $state({ ...app.snapshot!.settings });
   let reset = $state(false);
@@ -122,16 +123,25 @@
             bind:checked={draft.alarmEnabled}
           /></label
         >
-        <label class="select-row"
-          >Alarm<select bind:value={draft.alarm}
-            ><option value="chime">Soft chime</option><option value="bell"
-              >Classic bell</option
-            ><option value="digital">Digital notification</option
-            >{#if app.snapshot!.customAudio}<option value="custom"
-                >Custom sound</option
-              >{/if}</select
-          ></label
-        >
+        <div class="select-row">
+          <span>Alarm</span><Select
+            label="Alarm"
+            value={draft.alarm}
+            options={[
+              { value: 'chime', label: 'Soft chime' },
+              { value: 'bell', label: 'Classic bell' },
+              { value: 'digital', label: 'Digital notification' },
+              ...(app.snapshot!.customAudio
+                ? [{ value: 'custom', label: 'Custom sound' }]
+                : []),
+            ]}
+            onchange={(value) => {
+              draft.alarm = value;
+              saved = false;
+            }}
+            disabled={app.busy}
+          />
+        </div>
         <div class="sound-actions">
           <button
             class="text-button"
@@ -164,13 +174,21 @@
             bind:checked={draft.tickEnabled}
           /></label
         >
-        <label class="select-row"
-          >Tick<select bind:value={draft.tick}
-            ><option value="mechanical">Mechanical</option><option value="soft"
-              >Soft digital</option
-            ></select
-          ></label
-        >
+        <div class="select-row">
+          <span>Tick</span><Select
+            label="Tick"
+            value={draft.tick}
+            options={[
+              { value: 'mechanical', label: 'Mechanical' },
+              { value: 'soft', label: 'Soft digital' },
+            ]}
+            onchange={(value) => {
+              draft.tick = value;
+              saved = false;
+            }}
+            disabled={app.busy}
+          />
+        </div>
         <label class="range-row"
           >Tick volume <span>{Math.round(draft.tickVolume * 100)}%</span><input
             aria-label="Tick volume"

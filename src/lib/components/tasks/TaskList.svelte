@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Plus, ChevronDown, Pencil, Trash2 } from '@lucide/svelte';
   import IconButton from '../common/IconButton.svelte';
+  import Select from '../common/Select.svelte';
   import TaskItem from './TaskItem.svelte';
   import { api } from '../../api/commands';
   import { app } from '../../state/app.svelte';
@@ -67,19 +68,20 @@
   </div>
   {#if open}
     <div class="list-toolbar">
-      <select
-        aria-label="Active task list"
+      <Select
+        label="Active task list"
         value={list.id}
-        onchange={(e) => {
+        options={data.lists.map((item) => ({
+          value: item.id,
+          label: item.name,
+        }))}
+        disabled={app.busy}
+        onchange={(id) => {
           confirmDelete = false;
           listEdit = null;
-          void app.run(() =>
-            api.task({ action: 'selectList', id: e.currentTarget.value }),
-          );
+          void app.run(() => api.task({ action: 'selectList', id }));
         }}
-        >{#each data.lists as item}<option value={item.id}>{item.name}</option
-          >{/each}</select
-      >
+      />
       <IconButton
         label="Create task list"
         onclick={() => {
