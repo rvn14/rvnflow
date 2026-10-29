@@ -1,0 +1,17 @@
+{
+  "identifier": "com.rvnflow.native-smoke",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "RVNFlow native smoke",
+        "width": 210,
+        "height": 105,
+        "resizable": false,
+        "decorations": false,
+        "skipTaskbar": false,
+        "visible": false
+      }
+    ]
+  }
+}

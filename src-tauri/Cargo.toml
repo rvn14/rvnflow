@@ -1,6 +1,6 @@
 [package]
 name = "rvnflow"
-version = "0.1.0"
+version = "0.2.0"
 description = "A little space to focus. An offline Windows Pomodoro widget."
 authors = ["RVNFlow contributors"]
 edition = "2024"

@@ -29,7 +29,7 @@ pub fn apply(app: &tauri::AppHandle, data: &AppData, restore: bool) -> Result<()
             .set_always_on_top(data.settings.always_on_top)
             .map_err(native)?;
         let size = if data.window.expanded {
-            (350.0, 520.0)
+            (350.0, 560.0)
         } else {
             (210.0, 105.0)
         };
@@ -87,7 +87,16 @@ pub fn clamp(window: &tauri::WebviewWindow) -> Result<()> {
 pub fn show(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = clamp(&window);
+        let _ = window.set_skip_taskbar(false);
+        let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+pub fn hide(app: &tauri::AppHandle) -> Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide().map_err(native)?;
+        window.set_skip_taskbar(true).map_err(native)?;
+    }
+    Ok(())
 }

@@ -5,26 +5,29 @@ use crate::{
     },
     error::{AppError, Result, invalid},
     infrastructure::clock::{now_ms, wall_ms},
-    services::{engine::Engine, window},
+    services::{
+        startup::{self, Startup},
+        window,
+    },
     state::AppData,
 };
-use std::sync::Arc;
 use tauri::{Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
-type Backend<'a> = State<'a, Arc<Engine>>;
+type Backend<'a> = State<'a, Startup>;
 
-#[tauri::command]
-pub fn get_app_snapshot(engine: Backend<'_>) -> Result<AppData> {
-    engine.snapshot()
+#[tauri::command(async)]
+pub fn get_app_snapshot(backend: Backend<'_>) -> Result<AppData> {
+    backend.ready()?.snapshot()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn timer_action(
-    engine: Backend<'_>,
+    backend: Backend<'_>,
     action: String,
     session: Option<Session>,
 ) -> Result<AppData> {
+    let engine = backend.ready()?;
     engine.update("timer:changed", |d| {
         match action.as_str() {
             "start" | "resume" => d.timer.start(now_ms(), wall_ms(), &d.settings),
@@ -80,8 +83,9 @@ pub enum TaskAction {
         id: Option<String>,
     },
 }
-#[tauri::command]
-pub fn task_action(engine: Backend<'_>, change: TaskAction) -> Result<AppData> {
+#[tauri::command(async)]
+pub fn task_action(backend: Backend<'_>, change: TaskAction) -> Result<AppData> {
+    let engine = backend.ready()?;
     engine.update("tasks:changed", |d| {
         match change {
             TaskAction::Create { list_id, title } => {
@@ -131,8 +135,9 @@ pub fn task_action(engine: Backend<'_>, change: TaskAction) -> Result<AppData> {
         Ok(())
     })
 }
-#[tauri::command]
-pub fn settings_update(engine: Backend<'_>, settings: Settings) -> Result<AppData> {
+#[tauri::command(async)]
+pub fn settings_update(backend: Backend<'_>, settings: Settings) -> Result<AppData> {
+    let engine = backend.ready()?;
     settings.validate()?;
     let previous = engine.snapshot()?;
     if settings.alarm == "custom" && !previous.custom_audio {
@@ -152,9 +157,26 @@ pub fn settings_update(engine: Backend<'_>, settings: Settings) -> Result<AppDat
         if d.timer.status == Status::Idle {
             d.timer.select(d.timer.session, &d.settings);
         }
-        window::apply(&engine.app, d, false)?;
         Ok(())
     });
+    if let Ok(data) = &result
+        && let Err(error) = window::apply(&engine.app, data, false)
+    {
+        let _ = engine.update("settings:changed", |d| {
+            d.settings = previous.settings.clone();
+            if d.timer.status == Status::Idle {
+                d.timer.select(d.timer.session, &d.settings);
+            }
+            Ok(())
+        });
+        let _ = if previous.settings.start_with_windows {
+            launcher.enable()
+        } else {
+            launcher.disable()
+        };
+        let _ = window::apply(&engine.app, &previous, false);
+        return Err(error);
+    }
     if result.is_err() {
         let _ = if previous.settings.start_with_windows {
             launcher.enable()
@@ -165,15 +187,27 @@ pub fn settings_update(engine: Backend<'_>, settings: Settings) -> Result<AppDat
     }
     result
 }
-#[tauri::command]
-pub fn window_set_mode(engine: Backend<'_>, expanded: bool) -> Result<AppData> {
-    engine.update("window:changed", |d| {
+#[tauri::command(async)]
+pub fn window_set_mode(backend: Backend<'_>, expanded: bool) -> Result<AppData> {
+    let engine = backend.ready()?;
+    let previous = engine.snapshot()?;
+    let data = engine.update("window:changed", |d| {
         d.window.expanded = expanded;
-        window::apply(&engine.app, d, false)
-    })
+        Ok(())
+    })?;
+    if let Err(error) = window::apply(&engine.app, &data, false) {
+        let _ = engine.update("window:changed", |d| {
+            d.window.expanded = previous.window.expanded;
+            Ok(())
+        });
+        let _ = window::apply(&engine.app, &previous, false);
+        return Err(error);
+    }
+    Ok(data)
 }
-#[tauri::command]
-pub fn window_close(engine: Backend<'_>) -> Result<()> {
+#[tauri::command(async)]
+pub fn window_close(backend: Backend<'_>) -> Result<()> {
+    let engine = backend.ready()?;
     if let Some(window) = engine.app.get_webview_window("main") {
         window
             .close()
@@ -181,22 +215,25 @@ pub fn window_close(engine: Backend<'_>) -> Result<()> {
     }
     Ok(())
 }
-#[tauri::command]
-pub fn audio_preview(engine: Backend<'_>, kind: String) -> Result<()> {
+#[tauri::command(async)]
+pub fn audio_preview(backend: Backend<'_>, kind: String, settings: Option<Settings>) -> Result<()> {
+    let engine = backend.ready()?;
     let d = engine.snapshot()?;
+    let settings = settings.unwrap_or(d.settings);
+    settings.validate()?;
     match kind.as_str() {
         "alarm" => engine
             .audio
-            .play(&d.settings.alarm, d.settings.alarm_volume, false),
+            .play(&settings.alarm, settings.alarm_volume, false),
         "tick" => engine
             .audio
-            .play(&d.settings.tick, d.settings.tick_volume, false),
+            .play(&settings.tick, settings.tick_volume, false),
         _ => Err(invalid("Unknown audio preview.")),
     }
 }
 #[tauri::command]
-pub async fn audio_import_custom(engine: Backend<'_>) -> Result<AppData> {
-    let engine = engine.inner().clone();
+pub async fn audio_import_custom(backend: Backend<'_>) -> Result<AppData> {
+    let engine = backend.ready()?;
     tauri::async_runtime::spawn_blocking(move || {
         let file = engine
             .app
@@ -211,7 +248,6 @@ pub async fn audio_import_custom(engine: Backend<'_>) -> Result<AppData> {
                 .import(&path, &engine.storage.directory.join("custom-audio"))?;
             engine.update("settings:changed", |d| {
                 d.custom_audio = true;
-                d.settings.alarm = "custom".into();
                 Ok(())
             })
         } else {
@@ -220,4 +256,50 @@ pub async fn audio_import_custom(engine: Backend<'_>) -> Result<AppData> {
     })
     .await
     .map_err(|e| AppError::Native(e.to_string()))?
+}
+
+#[tauri::command(async)]
+pub fn window_minimize(backend: Backend<'_>) -> Result<()> {
+    let engine = backend.ready()?;
+    if let Some(window) = engine.app.get_webview_window("main") {
+        window
+            .set_skip_taskbar(false)
+            .map_err(|e| AppError::Native(e.to_string()))?;
+        window
+            .minimize()
+            .map_err(|e| AppError::Native(e.to_string()))?;
+    }
+    Ok(())
+}
+#[tauri::command(async)]
+pub fn window_hide(backend: Backend<'_>) -> Result<()> {
+    let engine = backend.ready()?;
+    engine.persist_position()?;
+    window::hide(&engine.app)
+}
+#[tauri::command(async)]
+pub fn app_quit(backend: Backend<'_>) -> Result<()> {
+    let engine = backend.ready()?;
+    engine.persist_position()?;
+    engine.update("window:changed", |_| Ok(()))?;
+    engine.app.exit(0);
+    Ok(())
+}
+#[tauri::command]
+pub fn get_startup_status(backend: Backend<'_>) -> startup::StartupStatus {
+    backend.status()
+}
+#[tauri::command(async)]
+pub fn frontend_ready() {
+    crate::infrastructure::diagnostics::record("frontend", "ready");
+}
+#[tauri::command]
+pub fn startup_retry(app: tauri::AppHandle) -> Result<()> {
+    startup::launch(
+        app.clone(),
+        app.path()
+            .app_data_dir()
+            .map_err(|e| AppError::Native(e.to_string()))?,
+    );
+    Ok(())
 }

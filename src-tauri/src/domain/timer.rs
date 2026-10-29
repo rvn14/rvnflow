@@ -150,6 +150,22 @@ impl Timer {
         }
         true
     }
+    pub fn advance(&mut self, now: u64, wall: u64, settings: &Settings) -> Option<Session> {
+        let finished = self.session;
+        if !self.complete(now) {
+            return None;
+        }
+        let next = self.next(settings);
+        self.select(next, settings);
+        if (next == Session::Focus && settings.auto_start_focus)
+            || (next != Session::Focus && settings.auto_start_breaks)
+        {
+            // Anchor auto-start to the current wake/recovery time, never a missed deadline.
+            // One expired session can therefore never trigger a chain after sleep.
+            self.start(now, wall, settings);
+        }
+        Some(finished)
+    }
     pub fn skip(&mut self, settings: &Settings) {
         // A skipped focus always leads to a short break and never earns a cycle credit.
         let next = if self.session == Session::Focus {

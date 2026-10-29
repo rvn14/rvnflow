@@ -17,7 +17,15 @@ impl Storage {
         Ok(Self { directory })
     }
     fn read(&self, path: &Path) -> Result<AppData> {
-        let data: AppData = serde_json::from_slice(&fs::read(path)?)?;
+        let mut data: AppData = serde_json::from_slice(&fs::read(path)?)?;
+        if data.schema_version == 1 {
+            data.schema_version = 2;
+            // Old completed sessions were already counted; select the next without crediting again.
+            if data.timer.status == crate::domain::timer::Status::Completed {
+                data.timer
+                    .select(data.timer.next(&data.settings), &data.settings);
+            }
+        }
         data.validate()?;
         Ok(data)
     }
@@ -36,14 +44,24 @@ impl Storage {
             return Ok(AppData::default());
         }
         match self.read(&path) {
-            Ok(data) => Ok(data),
+            Ok(data) => {
+                let legacy = serde_json::from_slice::<serde_json::Value>(&fs::read(&path)?)?
+                    .get("schemaVersion")
+                    .and_then(|v| v.as_u64())
+                    == Some(1);
+                let migration_backup = self.directory.join("app-state.v1.json");
+                if legacy && !migration_backup.exists() {
+                    fs::copy(&path, migration_backup)?;
+                }
+                Ok(data)
+            }
             Err(error) => {
                 // Never downgrade an unknown schema or erase unrecognized user data.
                 if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&fs::read(&path)?)
                     && value
                         .get("schemaVersion")
                         .and_then(|v| v.as_u64())
-                        .is_some_and(|v| v != 1)
+                        .is_some_and(|v| v != 1 && v != 2)
                 {
                     return Err(error);
                 }

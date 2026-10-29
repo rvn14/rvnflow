@@ -14,6 +14,8 @@ pub struct Completion {
     pub finished_at: u64,
     pub session: crate::domain::timer::Session,
     pub task_id: Option<String>,
+    #[serde(default)]
+    pub next_session: Option<crate::domain::timer::Session>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,7 +36,7 @@ pub struct AppData {
 impl Default for AppData {
     fn default() -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             revision: 0,
             settings: Settings::default(),
             timer: Timer::default(),
@@ -49,7 +51,7 @@ impl Default for AppData {
 }
 impl AppData {
     pub fn validate(&self) -> Result<()> {
-        if self.schema_version != 1 {
+        if self.schema_version != 2 {
             return Err(invalid(
                 "This data uses an unsupported schema. Install a compatible RVNFlow version.",
             ));
