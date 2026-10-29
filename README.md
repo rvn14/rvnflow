@@ -2,7 +2,8 @@
 
 **A little space to focus.** A small, offline Pomodoro widget for Windows 10/11.
 Built with Rust, Tauri 2, and Svelte 5. No account, cloud service, or telemetry.
-Version 0.2.1 runs focus and breaks automatically, repeats rounds until paused or stopped,
+Version 0.2.2 adds matching lavender dropdown menus and quiet, ring-free text fields.
+It runs focus and breaks automatically, repeats rounds until paused or stopped,
 and supports optional long breaks at their own interval. The window has one clean rounded
 surface, with no native shadow or opaque background behind it.
 See [automatic routines](docs/AUTOMATIC_ROUTINES.md) and [previous stability repairs](docs/V0.2_BUGS.md).
@@ -20,6 +21,7 @@ they are not evidence of native Windows behavior.
 - Sleep-aware timing, restart recovery, and ten quiet progress dots.
 - Automatic repeating rounds and optional long breaks every 2, 4, or another configured number of focus sessions.
 - Multiple task lists, completion tracking, editing, ordering, and a current focus task.
+- Styled task-list and sound menus with keyboard navigation, type-to-find, and selected checkmarks.
 - Three original alarms, custom WAV/MP3 import, two optional ticks, and separate volumes.
 - Always-on-top, tray controls, single instance, monitor-aware positioning, optional startup and notifications.
 - Local JSON with atomic replacement, a previous-state backup, validation, and corruption recovery.
@@ -71,7 +73,7 @@ pnpm test
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Installer output: `src-tauri/target/release/bundle/nsis/RVNFlow_0.2.1_x64-setup.exe`.
+Installer output: `src-tauri/target/release/bundle/nsis/RVNFlow_0.2.2_x64-setup.exe`.
 
 ## Structure and architecture
 

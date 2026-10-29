@@ -15,8 +15,7 @@ body,
   background: transparent;
 }
 button,
-input,
-select {
+input {
   font: inherit;
 }
 button {
@@ -33,24 +32,31 @@ button:disabled {
   cursor: default;
 }
 button,
-input,
-select {
+input {
   -webkit-app-region: no-drag;
 }
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--lavender);
   outline-offset: 2px;
 }
-input,
-select {
+input {
   min-width: 0;
   color: var(--text);
   border: 1px solid var(--border);
   background: var(--surface-deep);
   border-radius: 7px;
   padding: 8px 9px;
+}
+input:focus,
+input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-color: #a6a4fa55;
+}
+input[type='checkbox']:focus-visible,
+input[type='range']:focus-visible {
+  outline: 1px solid var(--lavender);
+  outline-offset: 3px;
 }
 input::placeholder {
   color: var(--muted);
@@ -65,8 +71,79 @@ input[type='checkbox'] {
   height: 16px;
   cursor: pointer;
 }
-select {
-  cursor: pointer;
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #2e2e4d80;
+  color: var(--text);
+  text-align: left;
+  font-size: 11px;
+}
+.select-trigger > span,
+.select-option > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-trigger > svg {
+  color: var(--muted);
+  transition: transform var(--motion);
+}
+.select-trigger:hover,
+.select-trigger:focus-visible,
+.select-trigger.select-open {
+  outline: none;
+  border-color: #a6a4fa55;
+  background: #c6b9ec0b;
+}
+.select-open > svg {
+  transform: rotate(180deg);
+  color: var(--lilac);
+}
+.select-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #c6b9ec30;
+  border-radius: 11px;
+  background: #3a3a5e;
+  color: var(--text);
+  box-shadow: 0 6px 18px #19192d40;
+}
+.select-popover::backdrop {
+  background: transparent;
+}
+.select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  text-align: left;
+  font-size: 11px;
+  line-height: 18px;
+  color: #dedbf1;
+}
+.select-option.option-active {
+  background: #a6a4fa1c;
+  color: var(--text);
+}
+.select-option[aria-selected='true'] {
+  color: var(--pink);
 }
 svg {
   flex-shrink: 0;
@@ -376,20 +453,22 @@ svg {
   flex-shrink: 0;
   margin-bottom: 10px;
 }
-.list-toolbar select {
+.list-toolbar .select-trigger {
   flex: 1;
   height: 29px;
-  padding: 4px 0;
+  padding: 4px 8px;
   margin-right: 8px;
   background: transparent;
-  border: 0;
+  border-color: transparent;
   font-size: 12px;
   font-weight: 500;
   color: var(--text);
 }
-option {
-  background: var(--surface);
-  color: var(--text);
+.list-toolbar .select-trigger:hover,
+.list-toolbar .select-trigger:focus-visible,
+.list-toolbar .select-trigger.select-open {
+  background: #c6b9ec0b;
+  border-color: #c6b9ec26;
 }
 .list-toolbar .icon-button {
   width: 25px;
@@ -525,6 +604,9 @@ option {
   background: transparent;
   font-size: 11px;
   padding: 7px 0;
+}
+.task-composer:focus-within {
+  border-color: #a6a4fa55;
 }
 .task-composer button {
   color: var(--lilac);
@@ -678,7 +760,7 @@ legend {
   min-height: 36px;
   font-size: 11px;
 }
-.select-row select {
+.select-row .select-trigger {
   width: 157px;
   padding: 6px 7px;
   font-size: 10px;
