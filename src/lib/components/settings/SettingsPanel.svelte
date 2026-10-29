@@ -9,12 +9,15 @@
   let reset = $state(false);
   let saved = $state(false);
   async function save() {
-    const success = await app.run(() => api.settings({ ...draft }));
+    const success = await app.run(
+      () => api.settings({ ...draft }),
+      'Settings saved.',
+    );
     saved = success;
     return success;
   }
   async function preview(kind: 'alarm' | 'tick') {
-    if (await save()) await app.run(() => api.preview(kind));
+    await app.run(() => api.preview(kind, { ...draft }));
   }
 </script>
 
@@ -82,6 +85,24 @@
         </p>
       </fieldset>
       <fieldset>
+        <legend>Session automation</legend>
+        <label class="switch-row"
+          >Auto-start breaks<input
+            type="checkbox"
+            bind:checked={draft.autoStartBreaks}
+          /></label
+        >
+        <label class="switch-row"
+          >Auto-start focus sessions<input
+            type="checkbox"
+            bind:checked={draft.autoStartFocus}
+          /></label
+        >
+        <p class="hint">
+          Start the next session automatically. Both options are independent.
+        </p>
+      </fieldset>
+      <fieldset>
         <legend>Appearance</legend>
         <div class="theme-chip">
           <span></span>Lavender Dark <Check size={13} />
@@ -120,7 +141,7 @@
             type="button"
             onclick={async () => {
               if (await app.run(api.importAudio))
-                draft.alarm = app.snapshot!.settings.alarm;
+                if (app.snapshot!.customAudio) draft.alarm = 'custom';
             }}><Upload size={13} />Import WAV / MP3</button
           ><button
             class="text-button"
@@ -165,7 +186,10 @@
           type="button"
           onclick={() => preview('tick')}
           ><Volume2 size={13} />Preview tick</button
-        ><label class="switch-row"
+        >
+      </fieldset>
+      <fieldset>
+        <legend>Notifications</legend><label class="switch-row"
           >Windows notifications<input
             type="checkbox"
             bind:checked={draft.notifications}
@@ -173,7 +197,7 @@
         >
       </fieldset>
       <fieldset>
-        <legend>Application</legend><label class="switch-row"
+        <legend>Window behavior</legend><label class="switch-row"
           >Start with Windows<input
             type="checkbox"
             bind:checked={draft.startWithWindows}
@@ -211,7 +235,12 @@
             onclick={() => (reset = true)}>Reset preferences</button
           >{/if}
       </fieldset>
-      <p class="version">RVNFlow 0.1.0 · Local. Quiet. Yours.</p>
+      <button
+        class="text-button"
+        type="button"
+        onclick={() => app.run(api.quit)}>Quit RVNFlow</button
+      >
+      <p class="version">RVNFlow 0.2.0 · Local. Quiet. Yours.</p>
     </div>
     <div class="settings-save">
       <span aria-live="polite"

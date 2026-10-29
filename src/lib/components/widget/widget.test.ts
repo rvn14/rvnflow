@@ -42,6 +42,36 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('widget interactions', () => {
+  it('keeps taskbar minimize, tray hide and collapse commands distinct', async () => {
+    render(ExpandedWidget);
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Minimize to taskbar' }),
+    );
+    expect(invoke).toHaveBeenLastCalledWith('window_minimize');
+    await fireEvent.click(screen.getByRole('button', { name: 'Hide to tray' }));
+    expect(invoke).toHaveBeenLastCalledWith('window_hide');
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Collapse widget' }),
+    );
+    expect(invoke).toHaveBeenLastCalledWith('window_set_mode', {
+      expanded: false,
+    });
+  });
+  it('previews a draft sound without saving preferences', async () => {
+    render(SettingsPanel, { close: vi.fn() });
+    await fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Auto-start breaks' }),
+    );
+    await fireEvent.click(screen.getByRole('button', { name: /^Preview$/ }));
+    expect(invoke).toHaveBeenCalledWith('audio_preview', {
+      kind: 'alarm',
+      settings: { ...defaultSettings, autoStartBreaks: true },
+    });
+    expect(invoke).not.toHaveBeenCalledWith(
+      'settings_update',
+      expect.anything(),
+    );
+  });
   it('labels the start control for a break session', () => {
     const state = snapshot();
     state.timer.session = 'shortBreak';

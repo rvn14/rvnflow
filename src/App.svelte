@@ -5,6 +5,7 @@
   import ExpandedWidget from './lib/components/widget/ExpandedWidget.svelte';
   import { app } from './lib/state/app.svelte';
   import { api } from './lib/api/commands';
+  import Toast from './lib/components/common/Toast.svelte';
   onMount(() => app.connect());
   $effect(() => {
     if (app.snapshot?.timer.status !== 'running') return;
@@ -23,13 +24,12 @@
   {#if app.snapshot}
     {#if app.snapshot.window.expanded}<ExpandedWidget />{:else}<MiniWidget
       />{/if}
-    {#if (app.error || app.snapshot.recovery) && app.snapshot.window.expanded}<div
+    <Toast />
+    {#if app.snapshot.recovery && app.snapshot.window.expanded}<div
         class="error-banner"
         role="alert"
       >
-        <CircleAlert size={15} /><span
-          >{app.error || app.snapshot.recovery}</span
-        ><button
+        <CircleAlert size={15} /><span>{app.snapshot.recovery}</span><button
           aria-label="Dismiss message"
           onclick={() => {
             app.error = '';
@@ -39,10 +39,19 @@
       </div>{/if}
   {:else}<div class="loading-state">
       <strong>RVNFlow</strong>
-      <p>{app.error || 'Making space for focus…'}</p>
-      {#if app.error}<button
+      <p>
+        {app.startupError || app.error || 'Loading your saved focus space…'}
+      </p>
+      {#if app.error || app.startupError}<button
           class="text-button"
-          onclick={() => app.run(api.snapshot)}>Try again</button
+          onclick={async () => {
+            app.startupError = '';
+            if (await app.run(api.retryStartup)) {
+              const status = await api.startup();
+              if (status.ready) await app.run(api.snapshot);
+              app.retryConnection();
+            }
+          }}>Retry recovery</button
         >{/if}
     </div>{/if}
 </main>

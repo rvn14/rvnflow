@@ -6,6 +6,8 @@
     Moon,
     Sparkles,
     Crosshair,
+    Minus,
+    PanelBottomClose,
   } from '@lucide/svelte';
   import IconButton from '../common/IconButton.svelte';
   import TimerDisplay from '../timer/TimerDisplay.svelte';
@@ -38,6 +40,13 @@
     >
     <div class="header-actions">
       <IconButton
+        label="Minimize to taskbar"
+        onclick={() => app.run(api.minimize)}><Minus size={15} /></IconButton
+      >
+      <IconButton label="Settings" onclick={() => (settings = !settings)}
+        ><Settings2 size={14} /></IconButton
+      >
+      <IconButton
         label="Collapse widget"
         onclick={() => app.run(() => api.mode(false))}
         ><Minimize2 size={14} /></IconButton
@@ -69,11 +78,11 @@
         isBreak={timer.session !== 'focus'}
       />
       <div class="cycle-status" aria-live="polite">
-        {timer.status === 'completed'
-          ? 'Beautifully done. Ready for the next?'
+        {app.completionMessage
+          ? app.completionMessage
           : timer.status === 'paused'
             ? 'Take your time. Your place is saved.'
-            : `Session ${(timer.completedFocus % app.snapshot!.settings.sessionsPerCycle) + 1} of ${app.snapshot!.settings.sessionsPerCycle} · ${timer.completedFocus} focused`}
+            : `${timer.session === 'focus' ? 'Focus' : 'Break'} · ${timer.completedFocus % app.snapshot!.settings.sessionsPerCycle || (timer.session !== 'focus' && timer.completedFocus ? app.snapshot!.settings.sessionsPerCycle : 0)} / ${app.snapshot!.settings.sessionsPerCycle} focused this cycle`}
       </div>
       <TimerControls />
       {#if current}<div class="current-task" title={current.title}>
@@ -91,9 +100,14 @@
         ><span class="status-dot"></span>{timer.status === 'running'
           ? 'One thing at a time.'
           : 'Find your flow.'}</span
-      ><IconButton label="Open settings" onclick={() => (settings = true)}
-        ><Settings2 size={16} /></IconButton
       >
+      <div class="footer-actions">
+        <IconButton label="Hide to tray" onclick={() => app.run(api.hide)}
+          ><PanelBottomClose size={15} /></IconButton
+        ><IconButton label="Open settings" onclick={() => (settings = true)}
+          ><Settings2 size={16} /></IconButton
+        >
+      </div>
     </footer>
   {/if}
 </div>

@@ -2,10 +2,10 @@
 
 ## Branches and versions
 
-`main` is the integration branch. `feature/v0.1.0` records the initial implementation.
+`main` is the integration branch. `feature/v0.2.0` records the initial implementation.
 `release/0.1` is the maintenance line. Use short-lived feature/fix branches thereafter.
-Version 0.1.0 is synchronized in package.json, Cargo.toml, Cargo.lock and tauri.conf.json.
-`node scripts/check-version.mjs v0.1.0` verifies a proposed stable tag.
+Version 0.2.0 is synchronized in package.json, Cargo.toml, Cargo.lock and tauri.conf.json.
+`node scripts/check-version.mjs v0.2.0` verifies a proposed stable tag.
 
 ## CI
 
@@ -24,9 +24,9 @@ builds the frontend, tests layouts and builds an NSIS installer. It uploads
    ```powershell
    git switch main
    git pull --ff-only
-   node scripts/check-version.mjs v0.1.0
-   git tag -a v0.1.0 -m "RVNFlow 0.1.0"
-   git push origin v0.1.0
+   node scripts/check-version.mjs v0.2.0
+   git tag -a v0.2.0 -m "RVNFlow 0.2.0"
+   git push origin v0.2.0
    ```
 
 4. `release.yml` verifies the tag, repeats quality checks, builds the installer and

@@ -24,6 +24,9 @@ jobs:
         shell: pwsh
         run: ./scripts/check.ps1
       - run: pnpm exec playwright test
+      - name: Native lifecycle regression checks
+        shell: pwsh
+        run: ./scripts/test-native.ps1
       - run: pnpm tauri build --bundles nsis
       - name: Generate checksums
         shell: pwsh

@@ -20,8 +20,9 @@
   const progress = $derived(taskProgress(tasks));
   async function add() {
     if (
-      await app.run(() =>
-        api.task({ action: 'create', listId: list.id, title }),
+      await app.run(
+        () => api.task({ action: 'create', listId: list.id, title }),
+        'Task added successfully.',
       )
     )
       title = '';
@@ -176,7 +177,7 @@
         </li>{/each}
     </ul>
     <form
-      class="task-input"
+      class="task-input task-composer"
       onsubmit={(e) => {
         e.preventDefault();
         void add();
@@ -186,12 +187,14 @@
         aria-label="New task"
         bind:value={title}
         placeholder="What are you working on?"
+        disabled={app.busy}
         maxlength="200"
         required
       /><button
         class="text-button"
         type="submit"
-        disabled={app.busy || !title.trim()}>Add</button
+        disabled={app.busy || !title.trim()}
+        >{app.busy ? 'Saving…' : 'Add'}</button
       >
     </form>
   {/if}

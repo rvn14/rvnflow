@@ -718,3 +718,193 @@ legend {
   background: var(--dot);
   border-radius: 4px;
 }
+
+/* Fixed controls frame the single scrolling task viewport at every DPI scale. */
+.widget-header {
+  padding: 9px 12px 7px 17px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+.header-actions {
+  gap: 1px;
+}
+.header-actions .icon-button {
+  width: 26px;
+  height: 28px;
+}
+.brand {
+  font-size: 12px;
+}
+.focus-section {
+  padding: 0 18px 14px;
+}
+.focus-section .timer-display {
+  font-size: 57px;
+  line-height: 1.12;
+  margin-top: 3px;
+}
+.focus-section:has(.break-dots) .timer-display {
+  color: var(--break);
+}
+.cycle-status {
+  font-size: 10px;
+  line-height: 1.4;
+  min-height: 14px;
+}
+.tasks-section {
+  padding: 11px 16px 0;
+  background: #2e2e4d45;
+}
+.task-list {
+  flex: 1 1 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+  margin: 9px 0;
+}
+.task-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 50px;
+  min-height: 39px;
+  gap: 7px;
+  padding: 4px 3px;
+  border-bottom: 1px solid #ffffff06;
+}
+.task-title {
+  min-width: 0;
+  font-size: 11px;
+}
+.task-actions {
+  justify-content: flex-end;
+}
+.task-actions .icon-button {
+  width: 24px;
+}
+.selected-task {
+  background: #a6a4fa12;
+  border-left: 2px solid var(--lavender);
+}
+.task-item:focus-within {
+  background: #a6a4fa0b;
+}
+.task-menu {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  background: var(--surface-deep);
+}
+.task-edit {
+  grid-column: 2 / -1;
+  min-width: 0;
+}
+.task-edit input {
+  min-width: 0;
+}
+.task-composer {
+  flex: 0 0 auto;
+  border: 1px solid #a6a4fa38;
+  background: var(--surface-deep);
+  padding: 5px 7px;
+  gap: 6px;
+  margin-top: auto;
+}
+.task-composer input {
+  min-width: 0;
+  font-size: 11px;
+}
+.task-composer button {
+  background: var(--surface-raised);
+  color: var(--lilac);
+  padding: 6px 9px;
+}
+.list-toolbar {
+  flex-shrink: 0;
+}
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+footer {
+  min-height: 39px;
+  padding: 5px 12px 6px 17px;
+}
+.settings-title {
+  padding-top: 2px;
+}
+.toast {
+  position: absolute;
+  z-index: 10;
+  bottom: 44px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 11px;
+  border-radius: 11px;
+  color: var(--text);
+  background: #272744;
+  border: 1px solid #a6a4fa66;
+  box-shadow: 0 5px 20px #11112d55;
+  font-size: 11px;
+  line-height: 1.5;
+  animation: toast-enter 150ms ease-out;
+}
+.toast span {
+  flex: 1;
+  min-width: 0;
+}
+.toast > svg {
+  color: var(--lavender);
+  margin-top: 2px;
+}
+.toast button {
+  display: flex;
+  padding: 2px;
+  color: var(--muted);
+}
+.toast.error-toast {
+  border-color: var(--pink);
+}
+.widget-shell:not(.expanded) .toast {
+  bottom: 5px;
+  left: 5px;
+  right: 5px;
+  padding: 5px;
+  font-size: 9px;
+  max-height: 42px;
+  overflow: auto;
+}
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 18px;
+}
+.loading-state p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+.reduced-motion .toast {
+  animation: none;
+}

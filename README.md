@@ -2,6 +2,9 @@
 
 **A little space to focus.** A small, offline Pomodoro widget for Windows 10/11.
 Built with Rust, Tauri 2, and Svelte 5. No account, cloud service, or telemetry.
+Version 0.2 repairs native freezes, automatically prepares the next session, and adds
+independent auto-start preferences, taskbar minimization and a clearer task workspace.
+See [repair findings and verification](docs/V0.2_BUGS.md).
 
 <img src="docs/screenshots/compact.png" width="210" alt="Compact RVNFlow timer with ten progress dots" />
 <img src="docs/screenshots/expanded.png" width="350" alt="Expanded RVNFlow timer and scrollable task list" />
@@ -11,7 +14,7 @@ they are not evidence of native Windows behavior.
 
 ## Features
 
-- A 210 × 105 compact widget and 350 × 520 expanded workspace.
+- A 210 × 105 compact widget and 350 × 560 expanded workspace.
 - Rust-owned focus, short-break and long-break sessions; pause, resume, reset and skip.
 - Sleep-aware timing, restart recovery, and ten quiet progress dots.
 - Multiple task lists, completion tracking, editing, ordering, and a current focus task.
@@ -36,7 +39,7 @@ Windows 10/11 x64 and Microsoft Edge WebView2 are required. Windows 11 is the pr
 The installer can bootstrap WebView2 if missing; that first-time dependency installation
 requires internet. Normal app use is fully offline. Installers are **unsigned** unless a
 future release explicitly documents signing; Windows SmartScreen may show a warning.
-Updates preserve the application data folder. There is no automatic updater in 0.1.
+Updates preserve the application data folder. There is no automatic updater in 0.2.
 
 ## Development
 
@@ -55,6 +58,7 @@ The browser tests provide an explicit test-only mock transport.
 # Complete local checks
 ./scripts/check.ps1
 pnpm exec playwright test
+./scripts/test-native.ps1
 
 # Windows NSIS installer
 pnpm tauri build --bundles nsis
@@ -65,7 +69,7 @@ pnpm test
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Installer output: `src-tauri/target/release/bundle/nsis/RVNFlow_0.1.0_x64-setup.exe`.
+Installer output: `src-tauri/target/release/bundle/nsis/RVNFlow_0.2.0_x64-setup.exe`.
 
 ## Structure and architecture
 

@@ -11,10 +11,13 @@
 
 <div class="mini-widget">
   <div class="mini-heading">
-    <span data-tauri-drag-region class="mini-session"
+    <span
+      data-tauri-drag-region
+      class="mini-session"
+      title={app.completionMessage || undefined}
       ><span class="status-dot" class:break-status={timer.session !== 'focus'}
-      ></span>{timer.status === 'completed'
-        ? 'COMPLETE'
+      ></span>{app.completionMessage
+        ? 'SESSION DONE'
         : timer.session === 'focus'
           ? 'FOCUS'
           : 'BREATHE'}</span

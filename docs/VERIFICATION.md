@@ -1,5 +1,9 @@
 # Verification record and native checklist
 
+For 0.2 results, see [V0.2_BUGS.md](V0.2_BUGS.md). The new isolated native harness has
+executed lifecycle, timer completion and restart checks. The list below retains manual
+acceptance checks, including physical DPI/multi-monitor and visible OS notification tests.
+
 ## Automated and build verification
 
 Implementation verification uses Rust domain/persistence/audio tests, Vitest component
