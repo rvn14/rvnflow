@@ -9,3 +9,4 @@ License 1.1. The package includes the license and the production build bundles f
 locally. Lucide icons (`@lucide/svelte`) use the ISC license. Tauri and its plugins,
 Svelte, Vite, Tailwind CSS, and Rodio retain their respective upstream licenses.
 Dependency versions and transitive dependencies are recorded in the two committed lockfiles.
+Inter, Lucide and RVNFlow license texts are bundled in the installed `licenses` directory.

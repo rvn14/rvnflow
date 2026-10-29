@@ -42,6 +42,15 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('widget interactions', () => {
+  it('labels the start control for a break session', () => {
+    const state = snapshot();
+    state.timer.session = 'shortBreak';
+    app.accept(state);
+    render(MiniWidget);
+    expect(
+      screen.getByRole('button', { name: 'Start break' }),
+    ).toBeInTheDocument();
+  });
   it('renders compact timer and starts through native IPC', async () => {
     render(MiniWidget);
     expect(screen.getByRole('timer')).toHaveTextContent('25:00');
