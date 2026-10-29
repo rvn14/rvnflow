@@ -56,7 +56,7 @@ impl Engine {
                         finished_at: wall_ms(),
                         session: finished,
                         task_id: d.timer.task_id.clone(),
-                        next_session: Some(d.timer.session),
+                        next_session: (!d.timer.routine_complete).then_some(d.timer.session),
                     };
                     d.history.push(record.clone());
                     if d.history.len() > 1000 {

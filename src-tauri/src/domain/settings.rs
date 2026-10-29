@@ -8,8 +8,9 @@ pub struct Settings {
     pub short_break_minutes: u32,
     pub long_break_minutes: u32,
     pub sessions_per_cycle: u32,
-    pub auto_start_breaks: bool,
-    pub auto_start_focus: bool,
+    pub long_break_enabled: bool,
+    pub long_break_interval: u32,
+    pub repeat_routine: bool,
     pub reduced_motion: bool,
     pub always_on_top: bool,
     pub alarm_enabled: bool,
@@ -30,8 +31,9 @@ impl Default for Settings {
             short_break_minutes: 5,
             long_break_minutes: 15,
             sessions_per_cycle: 4,
-            auto_start_breaks: false,
-            auto_start_focus: false,
+            long_break_enabled: false,
+            long_break_interval: 2,
+            repeat_routine: true,
             reduced_motion: false,
             always_on_top: true,
             alarm_enabled: true,
@@ -53,6 +55,7 @@ impl Settings {
             || !(1..=60).contains(&self.short_break_minutes)
             || !(1..=120).contains(&self.long_break_minutes)
             || !(1..=12).contains(&self.sessions_per_cycle)
+            || !(1..=12).contains(&self.long_break_interval)
         {
             return Err(invalid(
                 "Use focus 1–180, short break 1–60, long break 1–120 minutes and 1–12 sessions.",

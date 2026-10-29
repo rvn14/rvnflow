@@ -36,7 +36,7 @@ pub struct AppData {
 impl Default for AppData {
     fn default() -> Self {
         Self {
-            schema_version: 2,
+            schema_version: 3,
             revision: 0,
             settings: Settings::default(),
             timer: Timer::default(),
@@ -51,7 +51,7 @@ impl Default for AppData {
 }
 impl AppData {
     pub fn validate(&self) -> Result<()> {
-        if self.schema_version != 2 {
+        if self.schema_version != 3 {
             return Err(invalid(
                 "This data uses an unsupported schema. Install a compatible RVNFlow version.",
             ));

@@ -24,8 +24,12 @@ fn timer_pause_resume_reset_and_drift() {
     assert_eq!(timer.remaining_ms, 1_500_000);
 }
 #[test]
-fn completion_is_exactly_once_and_cycles_require_confirmation() {
-    let settings = Settings::default();
+fn completion_is_credited_exactly_once_before_transition() {
+    let settings = Settings {
+        long_break_enabled: true,
+        long_break_interval: 4,
+        ..Settings::default()
+    };
     let mut timer = Timer::new(&settings);
     for index in 1..=4 {
         timer.select(Session::Focus, &settings);
@@ -73,10 +77,10 @@ fn skipped_focus_does_not_count() {
     let settings = Settings::default();
     let mut timer = Timer::new(&settings);
     timer.start(0, 0, &settings);
-    timer.skip(&settings);
+    timer.skip(1000, 1000, &settings);
     assert_eq!(timer.completed_focus, 0);
     assert_eq!(timer.session, Session::ShortBreak);
-    assert_eq!(timer.status, Status::Idle);
+    assert_eq!(timer.status, Status::Running);
 }
 #[test]
 fn tasks_crud_reordering_and_validation() {

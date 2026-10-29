@@ -14,6 +14,9 @@ try {
         if ($scenario -eq 'restart-running') {
             $saved = Get-Content (Join-Path $fixtureRoot 'first-launch/app-state.json') -Raw | ConvertFrom-Json
             $saved.timer.status = 'running'
+            $saved.timer.routineComplete = $false
+            $saved.timer.routineCompletedFocus = 0
+            $saved.timer.focusSinceLongBreak = 0
             $saved.timer.durationMs = 60000
             $saved.timer.remainingMs = 60000
             $saved.timer.wallDeadlineMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + 60000
@@ -33,7 +36,7 @@ try {
             if ($result -ne 'passed') { throw "$scenario : $result" }
             $state = Get-Content (Join-Path $directory 'app-state.json') -Raw | ConvertFrom-Json
             if ($state.tasks.tasks.Count -ne 1) { throw 'Native restart lost a task' }
-            Write-Output "$scenario passed (native modes, minimize/restore, tray hide/show, single instance, saved tasks)"
+            Write-Output "$scenario passed (native modes, minimize/restore, tray hide/show, single instance, saved tasks, automatic 4x50/10 routine)"
         } finally {
             $primary.Refresh()
             if (!$primary.HasExited) { Stop-Process -Id $primary.Id }

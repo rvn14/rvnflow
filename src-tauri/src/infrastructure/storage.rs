@@ -1,4 +1,5 @@
 use crate::{
+    domain::timer::{Session, Status},
     error::{Result, invalid},
     state::AppData,
 };
@@ -17,13 +18,59 @@ impl Storage {
         Ok(Self { directory })
     }
     fn read(&self, path: &Path) -> Result<AppData> {
-        let mut data: AppData = serde_json::from_slice(&fs::read(path)?)?;
-        if data.schema_version == 1 {
-            data.schema_version = 2;
-            // Old completed sessions were already counted; select the next without crediting again.
-            if data.timer.status == crate::domain::timer::Status::Completed {
-                data.timer
-                    .select(data.timer.next(&data.settings), &data.settings);
+        let raw: serde_json::Value = serde_json::from_slice(&fs::read(path)?)?;
+        let mut data: AppData = serde_json::from_value(raw.clone())?;
+        if data.schema_version == 1 || data.schema_version == 2 {
+            data.schema_version = 3;
+            // Preserve the old long-break cadence, while removing the old opt-in
+            // auto-start flags: scheduled focus/break transitions are now automatic.
+            if raw["settings"].get("longBreakEnabled").is_none() {
+                data.settings.long_break_enabled = true;
+                data.settings.long_break_interval = data.settings.sessions_per_cycle;
+            }
+            data.timer.routine_completed_focus =
+                data.timer.completed_focus % data.settings.sessions_per_cycle.max(1);
+            data.timer.focus_since_long_break =
+                data.timer.completed_focus % data.settings.long_break_interval.max(1);
+            // Completed legacy phases were already credited. Resume their next
+            // scheduled phase without recording or alarming for the old phase again.
+            let completed_focus = data.timer.status == Status::Completed
+                && data.timer.session == Session::Focus
+                && data.timer.completed_focus > 0;
+            if completed_focus && data.timer.routine_completed_focus == 0 {
+                data.timer.routine_completed_focus = data.settings.sessions_per_cycle;
+            }
+            if completed_focus && data.timer.focus_since_long_break == 0 {
+                data.timer.focus_since_long_break = data.settings.long_break_interval;
+            }
+            if data.timer.status == Status::Completed {
+                if completed_focus
+                    && data.timer.routine_completed_focus >= data.settings.sessions_per_cycle
+                    && !data.settings.repeat_routine
+                {
+                    data.timer.routine_complete = true;
+                } else {
+                    data.timer
+                        .select(data.timer.next(&data.settings), &data.settings);
+                    data.timer.start(
+                        super::clock::now_ms(),
+                        super::clock::wall_ms(),
+                        &data.settings,
+                    );
+                }
+            } else if data.timer.status == Status::Idle
+                && data.timer.session != Session::Focus
+                && data.history.last().is_some_and(|record| {
+                    record.session == Session::Focus
+                        && record.next_session == Some(data.timer.session)
+                })
+            {
+                // v0.2 left automatically prepared breaks idle when auto-start was off.
+                data.timer.start(
+                    super::clock::now_ms(),
+                    super::clock::wall_ms(),
+                    &data.settings,
+                );
             }
         }
         data.validate()?;
@@ -47,11 +94,13 @@ impl Storage {
             Ok(data) => {
                 let legacy = serde_json::from_slice::<serde_json::Value>(&fs::read(&path)?)?
                     .get("schemaVersion")
-                    .and_then(|v| v.as_u64())
-                    == Some(1);
-                let migration_backup = self.directory.join("app-state.v1.json");
-                if legacy && !migration_backup.exists() {
-                    fs::copy(&path, migration_backup)?;
+                    .and_then(|v| v.as_u64());
+                if let Some(version @ (1 | 2)) = legacy {
+                    let migration_backup =
+                        self.directory.join(format!("app-state.v{version}.json"));
+                    if !migration_backup.exists() {
+                        fs::copy(&path, migration_backup)?;
+                    }
                 }
                 Ok(data)
             }
@@ -61,7 +110,7 @@ impl Storage {
                     && value
                         .get("schemaVersion")
                         .and_then(|v| v.as_u64())
-                        .is_some_and(|v| v != 1 && v != 2)
+                        .is_some_and(|v| v != 1 && v != 2 && v != 3)
                 {
                     return Err(error);
                 }

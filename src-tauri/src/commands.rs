@@ -32,8 +32,12 @@ pub fn timer_action(
         match action.as_str() {
             "start" | "resume" => d.timer.start(now_ms(), wall_ms(), &d.settings),
             "pause" => d.timer.pause(now_ms()),
-            "reset" => d.timer.select(d.timer.session, &d.settings),
-            "skip" => d.timer.skip(&d.settings),
+            "reset" => {
+                d.timer.routine_completed_focus = 0;
+                d.timer.focus_since_long_break = 0;
+                d.timer.select(Session::Focus, &d.settings);
+            }
+            "skip" => d.timer.skip(now_ms(), wall_ms(), &d.settings),
             "select" => d.timer.select(
                 session.ok_or_else(|| invalid("Choose a session."))?,
                 &d.settings,
